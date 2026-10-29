@@ -211,7 +211,19 @@
 		.dialog-content select, .checkout-form input { width: 100%; height: 41px; padding: 0 10px; border: 1px solid var(--line); border-radius: 3px; background: white; font-size: 12px; }
 		.dialog-add { width: 100%; margin-top: 14px; }
 		.checkout-form { display: grid; gap: 12px; margin-top: 20px; }
+		.checkout-message { margin: 0; color: #b53b20; font-size: 12px; }
+		.paypal-button-container { min-height: 45px; }
 		.checkout-form label { margin: 0 0 6px; }
+		.auth-form { display: grid; gap: 12px; margin-top: 22px; }
+		.auth-form label { display: block; margin: 0 0 6px; font-size: 11px; font-weight: 700; }
+		.auth-form input { width: 100%; height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 3px; background: white; font-size: 13px; }
+		.auth-description, .auth-message { color: var(--muted); font-size: 12px; line-height: 1.6; }
+		.auth-message { min-height: 20px; margin: 0; }
+		.auth-message[data-error="true"] { color: #b53b20; }
+		.auth-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+		.auth-form[hidden], .auth-actions[hidden], #auth-signed-in[hidden] { display: none; }
+		.auth-actions button { padding: 8px 0; border: 0; border-bottom: 1px solid var(--ink); background: transparent; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+		.auth-form .checkout-button:disabled, .auth-actions button:disabled { cursor: wait; opacity: .65; }
 		.checkout-success { padding: 36px 0 12px; text-align: center; }
 		.checkout-success p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 		.catalog-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
@@ -246,6 +258,7 @@
 		<label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><span class="visually-hidden">Search products</span><input id="search" type="search" placeholder="Search products..." autocomplete="off"></label>
 		<div class="app-actions">
 			<button id="favorites-toggle" type="button" aria-pressed="false">Saved <span id="favorites-count">0</span></button>
+			<button id="auth-trigger" type="button" aria-haspopup="dialog" aria-controls="auth-dialog">Sign in</button>
 			<button class="bag-button" id="open-cart" type="button" aria-label="Open shopping bag, 0 items" aria-expanded="false" aria-controls="cart-drawer">Bag <span class="bag-count" aria-live="polite">0</span></button>
 		</div>
 	</header>
@@ -265,64 +278,68 @@
 		</aside>
 		<section class="catalog" aria-labelledby="catalog-title">
 			<div class="catalog-heading">
-				<div><div class="eyebrow">Drip District / Shop</div><h1 id="catalog-title">All pieces</h1><div class="results-count" id="results-count" aria-live="polite">8 products</div></div>
+				<div><div class="eyebrow">Drip District / Shop</div><h1 id="catalog-title">All pieces</h1><div class="results-count" id="results-count" aria-live="polite">Loading products…</div></div>
 				<div class="catalog-tools"><label for="sort-products">Sort by</label><select id="sort-products"><option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select></div>
 			</div>
-			<div class="product-grid" aria-live="polite">
-				<article class="product" data-category="tops">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1521572163474-6864f9cf17ab.jpg" alt="Heavyweight white cotton T-shirt" loading="lazy"><span class="product-tag">Bestseller</span><button class="wish-button" type="button" aria-label="Add District Heavy Tee to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="District Heavy Tee">Quick add +</button></div>
-					<div class="product-meta"><span>District Heavy Tee</span><span>$42</span></div><div class="product-category">Tops · Chalk</div>
-				</article>
-				<article class="product" data-category="bottoms">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1542272604-787c3835535d.jpg" alt="Relaxed dark denim jeans" loading="lazy"><span class="product-tag">New</span><button class="wish-button" type="button" aria-label="Add After Hours Denim to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="After Hours Denim">Quick add +</button></div>
-					<div class="product-meta"><span>After Hours Denim</span><span>$88</span></div><div class="product-category">Bottoms · Washed black</div>
-				</article>
-				<article class="product" data-category="tops">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1551028719-00167b16eac5.jpg" alt="Relaxed vintage-inspired outerwear" loading="lazy"><span class="product-tag">Limited run</span><button class="wish-button" type="button" aria-label="Add Block Party Jacket to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="Block Party Jacket">Quick add +</button></div>
-					<div class="product-meta"><span>Block Party Jacket</span><span>$124</span></div><div class="product-category">Outerwear · Burnt orange</div>
-				</article>
-				<article class="product" data-category="extras">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1521369909029-2afed882baee.jpg" alt="Classic everyday baseball cap" loading="lazy"><span class="product-tag">Easy fit</span><button class="wish-button" type="button" aria-label="Add Off Script Cap to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="Off Script Cap">Quick add +</button></div>
-					<div class="product-meta"><span>Off Script Cap</span><span>$36</span></div><div class="product-category">Extras · Washed olive</div>
-				</article>
-				<article class="product" data-category="tops">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1551488831-00ddcb6c6bd3.jpg" alt="Soft everyday sweatshirt" loading="lazy"><span class="product-tag">Just landed</span><button class="wish-button" type="button" aria-label="Add Sunday State Sweatshirt to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="Sunday State Sweatshirt">Quick add +</button></div>
-					<div class="product-meta"><span>Sunday State Sweatshirt</span><span>$76</span></div><div class="product-category">Tops · Heather grey</div>
-				</article>
-				<article class="product" data-category="bottoms">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1515886657613-9f3515b0c78f.jpg" alt="Easy relaxed-fit everyday trousers" loading="lazy"><span class="product-tag">Easy fit</span><button class="wish-button" type="button" aria-label="Add All Day Trousers to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="All Day Trousers">Quick add +</button></div>
-					<div class="product-meta"><span>All Day Trousers</span><span>$72</span></div><div class="product-category">Bottoms · Everyday khaki</div>
-				</article>
-				<article class="product" data-category="tops">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1620799140408-edc6dcb6d633.jpg" alt="Relaxed-fit graphic tee" loading="lazy"><span class="product-tag">District pick</span><button class="wish-button" type="button" aria-label="Add Side Street Long Sleeve to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="Side Street Long Sleeve">Quick add +</button></div>
-					<div class="product-meta"><span>Side Street Long Sleeve</span><span>$54</span></div><div class="product-category">Tops · Soft white</div>
-				</article>
-				<article class="product" data-category="extras">
-					<div class="product-image-wrap"><img class="product-image" src="/assets/products/photo-1553062407-98eeb64c6a62.jpg" alt="Everyday utility backpack" loading="lazy"><span class="product-tag">On the move</span><button class="wish-button" type="button" aria-label="Add Daily Loop Bag to wishlist" aria-pressed="false">♡</button><button class="quick-add" type="button" data-product="Daily Loop Bag">Quick add +</button></div>
-					<div class="product-meta"><span>Daily Loop Bag</span><span>$64</span></div><div class="product-category">Extras · Cobalt</div>
-				</article>
-			</div>
+			<div class="product-grid" aria-live="polite"></div>
 		</section>
-		<div class="catalog-footer"><span id="catalog-footer-count">Showing 8 products</span><span>Demo shop · Checkout is simulated</span></div>
+		<div class="catalog-footer"><span id="catalog-footer-count">Loading products</span><span>PayPal checkout · USD</span></div>
 	</main>
 
 	<div class="cart-scrim" id="cart-scrim" hidden></div>
 	<aside class="cart-drawer" id="cart-drawer" aria-labelledby="cart-title" aria-modal="true" aria-hidden="true" hidden>
 		<div class="drawer-heading"><h2 id="cart-title">Your bag <span class="drawer-count"></span></h2><button class="icon-button" type="button" data-close-cart aria-label="Close bag">×</button></div>
 		<div class="cart-items" id="cart-items"></div>
-		<div class="cart-summary"><div class="subtotal-row"><span>Subtotal</span><span id="cart-subtotal">$0.00</span></div><p class="cart-note">Shipping and taxes are calculated at checkout.</p><button class="checkout-button" id="start-checkout" type="button" disabled>Continue to checkout</button></div>
+		<div class="cart-summary"><div class="subtotal-row"><span>Subtotal</span><span id="cart-subtotal">$0.00</span></div><p class="cart-note">Shipping and taxes are not included.</p><button class="checkout-button" id="start-checkout" type="button" disabled>Continue to checkout</button></div>
 	</aside>
 
 	<dialog class="product-dialog" id="product-dialog" aria-labelledby="detail-name">
 		<div class="dialog-content"><div class="dialog-header"><div><h2 id="detail-name"></h2><p class="dialog-price" id="detail-price"></p></div><button class="icon-button" type="button" data-close-product aria-label="Close product details">×</button></div><img class="dialog-image" id="detail-image" alt=""><p class="dialog-description" id="detail-description"></p><label for="detail-size">Size</label><select id="detail-size"><option value="XS">XS</option><option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option></select><button class="checkout-button dialog-add" id="detail-add" type="button">Add to bag</button></div>
 	</dialog>
 
-	<dialog class="checkout-dialog" id="checkout-dialog" aria-labelledby="checkout-title">
-		<div class="dialog-content"><div class="dialog-header"><div><h2 id="checkout-title">Checkout</h2><p class="dialog-price">Demo checkout</p></div><button class="icon-button" type="button" data-close-checkout aria-label="Close checkout">×</button></div><div id="checkout-body"><form class="checkout-form" id="checkout-form"><div><label for="checkout-name">Name</label><input id="checkout-name" name="name" autocomplete="name" required></div><div><label for="checkout-email">Email</label><input id="checkout-email" name="email" type="email" autocomplete="email" required></div><div><label for="checkout-address">Shipping address</label><input id="checkout-address" name="address" autocomplete="street-address" required></div><p class="dialog-description">This demo does not submit or store payment details.</p><button class="checkout-button" type="submit">Place demo order</button></form></div></div>
+	<dialog id="auth-dialog" aria-labelledby="auth-title">
+		<div class="dialog-content">
+			<div class="dialog-header">
+				<div><h2 id="auth-title">Sign in</h2><p class="auth-description" id="auth-description">Sign in to your Drip District account.</p></div>
+				<button class="icon-button" type="button" id="auth-close" aria-label="Close sign in">×</button>
+			</div>
+			<div id="auth-signed-in" hidden>
+				<p class="auth-description">Signed in as <strong id="auth-email"></strong></p>
+				<p class="auth-message" id="account-data-message" role="status" aria-live="polite"></p>
+				<section aria-labelledby="account-orders-title">
+					<h3 id="account-orders-title">Order history</h3>
+					<p class="auth-description" id="account-orders-message">Loading your orders…</p>
+					<ol id="account-orders"></ol>
+				</section>
+				<div class="auth-actions"><button type="button" id="auth-sign-out">Sign out</button></div>
+			</div>
+			<p class="auth-message" id="auth-message" role="status" aria-live="polite"></p>
+			<form class="auth-form" id="auth-form">
+				<div><label for="auth-email-input">Email</label><input id="auth-email-input" name="email" type="email" autocomplete="email" required maxlength="254"></div>
+				<div><label for="auth-password-input">Password</label><input id="auth-password-input" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128"></div>
+				<button class="checkout-button" id="auth-submit" type="submit">Sign in</button>
+			</form>
+			<div class="auth-actions" id="auth-mode-actions"><span class="auth-description" id="auth-mode-description">New here?</span><button type="button" id="auth-mode-toggle">Create account</button></div>
+			<p class="auth-description" id="auth-warning">Email addresses are not verified, and password reset is unavailable. Use an email you can access and keep your password safe.</p>
+		</div>
 	</dialog>
 
-	<script>
+	<dialog class="checkout-dialog" id="checkout-dialog" aria-labelledby="checkout-title">
+		<div class="dialog-content"><div class="dialog-header"><div><h2 id="checkout-title">Checkout</h2><p class="dialog-price">Pay securely with PayPal</p></div><button class="icon-button" type="button" data-close-checkout aria-label="Close checkout">×</button></div><div id="checkout-body"><form class="checkout-form" id="checkout-form"><div><label for="checkout-name">Name</label><input id="checkout-name" name="name" autocomplete="name" required maxlength="120"></div><div><label for="checkout-email">Email</label><input id="checkout-email" name="email" type="email" autocomplete="email" required maxlength="254"></div><p class="dialog-description">PayPal will securely collect your shipping address and payment details.</p><p class="checkout-message" id="checkout-message" role="status" aria-live="polite"></p><div class="paypal-button-container" id="paypal-button-container"></div></form></div></div>
+	</dialog>
+
+	<script type="module">
+	async function initializeStore() {
 		const storageKeys = { cart: 'drip-district-cart', favorites: 'drip-district-favorites' };
+		let activeAccount = null;
+		let pendingAccount = window.dripDistrictAccount ?? null;
+		let storeReady = false;
+		let accountGeneration = 0;
+		let accountDataWrite = Promise.resolve();
+		window.addEventListener('dripdistrict:account', (event) => {
+			pendingAccount = event.detail.user;
+			if (storeReady) void setActiveAccount(pendingAccount);
+		});
 		const loadState = (key, fallback) => {
 			try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
 			catch { return fallback; }
@@ -331,107 +348,85 @@
 			try { localStorage.setItem(key, JSON.stringify(value)); }
 			catch { /* Storage can be unavailable for local files or private browsing. */ }
 		};
-		const extraProductGroups = [
-			{
-				category: 'tops',
-				items: [
-					['District Boxy Tee', 40], ['Side Street Logo Tee', 42], ['After Hours Long Sleeve', 54], ['Warehouse Graphic Tee', 46],
-					['Off-Duty Hoodie', 86], ['District Crewneck', 78], ['Late Checkout Zip Hoodie', 92], ['Boxed In Heavy Tee', 44],
-					['Good Company Polo', 62], ['Night Shift Overshirt', 88], ['No Signal Thermal', 58], ['Weekend Rugby Shirt', 74],
-					['Everyday Tank', 30], ['Mainline Mockneck', 68], ['Block Letter Hoodie', 84], ['Corner Store Tee', 38],
-					['City Limits Sweatshirt', 80], ['Artist Series Tee', 48]
-				],
-				images: ['photo-1521572163474-6864f9cf17ab', 'photo-1620799140408-edc6dcb6d633', 'photo-1551488831-00ddcb6c6bd3', 'photo-1551028719-00167b16eac5', 'photo-1523398002811-999ca8dec234', 'photo-1529139574466-a303027c1d8b', 'photo-1503342217505-b0a15ec3261c', 'photo-1490481651871-ab68de25d43d']
-			},
-			{
-				category: 'bottoms',
-				items: [
-					['District Relaxed Jean', 92], ['Trackside Cargo Pant', 84], ['Everyday Carpenter Pant', 88], ['Sunday Sweatpant', 68],
-					['Straight Shot Denim', 90], ['Transit Nylon Short', 54], ['Wide Awake Trouser', 82], ['Utility Pocket Short', 52],
-					['Off Hours Parachute Pant', 96], ['Weekend Chino', 76], ['Double Knee Work Pant', 94], ['After Dark Short', 58],
-					['City Runner Jogger', 72], ['Canvas Field Pant', 86], ['Easy Does It Short', 48], ['District Pleated Trouser', 98]
-				],
-				images: ['photo-1542272604-787c3835535d', 'photo-1515886657613-9f3515b0c78f', 'photo-1503341455253-b2e723bb3dbb', 'photo-1529139574466-a303027c1d8b', 'photo-1475180098004-ca77a66827be']
-			},
-			{
-				category: 'extras',
-				items: [
-					['District Five-Panel', 34], ['Everywhere Tote', 42], ['Transit Crossbody', 58], ['Good Luck Beanie', 28],
-					['Side Street Socks', 16], ['Daily Carry Sling', 48], ['Off Script Bucket Hat', 36], ['Utility Key Clip', 18],
-					['Weekend Duffle', 72], ['District Sport Cap', 32], ['Pocket Change Wallet', 38], ['All Day Backpack', 78],
-					['After Hours Beanie', 30], ['Market Day Tote', 38], ['Canvas Zip Pouch', 24], ['City Pack Mini', 64]
-				],
-				images: ['photo-1521369909029-2afed882baee', 'photo-1553062407-98eeb64c6a62', 'photo-1584917865442-de89df76afd3', 'photo-1576566588028-4147f3842f27', 'photo-1512436991641-6745cdb1723f']
-			}
-		];
-		const productColors = ['Washed black', 'Chalk', 'Concrete', 'Olive', 'Rust', 'Midnight'];
-		const productTags = ['Just landed', 'District staple', 'New', 'Easy fit'];
-		extraProductGroups.forEach((group) => {
-			group.items.forEach(([name, price], index) => {
-				const card = document.createElement('article');
-				card.className = 'product';
-				card.dataset.category = group.category;
-				const imageWrap = document.createElement('div');
-				imageWrap.className = 'product-image-wrap';
-				const image = document.createElement('img');
-				image.className = 'product-image';
-				image.src = `/assets/products/${group.images[index % group.images.length]}.jpg`;
-				image.alt = name;
-				image.loading = 'lazy';
-				const tag = document.createElement('span');
-				tag.className = 'product-tag';
-				tag.textContent = productTags[index % productTags.length];
-				const favorite = document.createElement('button');
-				favorite.className = 'wish-button';
-				favorite.type = 'button';
-				favorite.setAttribute('aria-pressed', 'false');
-				favorite.textContent = '♡';
-				imageWrap.append(image, tag, favorite);
-				const meta = document.createElement('div');
-				meta.className = 'product-meta';
-				const productName = document.createElement('span');
-				productName.textContent = name;
-				const productPrice = document.createElement('span');
-				productPrice.textContent = `$${price}`;
-				meta.append(productName, productPrice);
-				const detail = document.createElement('div');
-				detail.className = 'product-category';
-				detail.textContent = `${group.category[0].toUpperCase()}${group.category.slice(1)} · ${productColors[index % productColors.length]}`;
-				card.append(imageWrap, meta, detail);
-				document.querySelector('.product-grid').append(card);
-			});
-		});
-		const products = [...document.querySelectorAll('.product')].map((card, index) => {
-			const name = card.querySelector('.product-meta span').textContent.trim();
-			const product = {
-				id: String(index + 1),
-				name,
-				price: Number(card.querySelector('.product-meta span:last-child').textContent.replace(/[^\d.]/g, '')),
-				category: card.dataset.category,
-				detail: card.querySelector('.product-category').textContent.trim(),
-				image: card.querySelector('.product-image').getAttribute('src'),
-				imageAlt: card.querySelector('.product-image').alt
-			};
+		const formatPrice = (amount) => `$${amount.toFixed(2)}`;
+		const grid = document.querySelector('.product-grid');
+		let products;
+		try {
+			const response = await fetch('/api/products');
+			if (!response.ok) throw new Error(`Catalog request failed with status ${response.status}.`);
+			products = await response.json();
+			if (!Array.isArray(products) || products.length === 0) throw new Error('The catalog response was empty or invalid.');
+		} catch (error) {
+			console.error('Could not load the product catalog:', error);
+			const message = document.createElement('p');
+			message.className = 'empty-state';
+			message.setAttribute('role', 'alert');
+			message.textContent = 'The shop is temporarily unavailable. Please start the backend and refresh the page.';
+			grid.replaceChildren(message);
+			document.querySelector('#results-count').textContent = 'Catalog unavailable';
+			document.querySelector('#catalog-footer-count').textContent = 'Catalog unavailable';
+			return;
+		}
+
+		const cards = products.map((product) => {
+			const card = document.createElement('article');
+			card.className = 'product';
+			card.dataset.category = product.category;
 			card.dataset.id = product.id;
-			card.querySelector('.quick-add')?.remove();
+
+			const imageWrap = document.createElement('div');
+			imageWrap.className = 'product-image-wrap';
+			const image = document.createElement('img');
+			image.className = 'product-image';
+			image.src = product.image;
+			image.alt = product.imageAlt;
+			image.loading = 'lazy';
+			const tag = document.createElement('span');
+			tag.className = 'product-tag';
+			tag.textContent = product.tag;
+			const favorite = document.createElement('button');
+			favorite.className = 'wish-button';
+			favorite.type = 'button';
+			favorite.setAttribute('aria-pressed', 'false');
+			favorite.textContent = '♡';
+			imageWrap.append(image, tag, favorite);
+
+			const meta = document.createElement('div');
+			meta.className = 'product-meta';
+			const name = document.createElement('span');
+			name.textContent = product.name;
+			const price = document.createElement('span');
+			price.textContent = formatPrice(product.price);
+			meta.append(name, price);
+
+			const detail = document.createElement('div');
+			detail.className = 'product-category';
+			detail.textContent = product.detail;
+
 			const actions = document.createElement('div');
 			actions.className = 'product-actions';
-			actions.innerHTML = '<button class="details-button" type="button">Details</button><button class="add-button" type="button">Add to bag</button>';
-			card.append(actions);
-			card.querySelector('.wish-button').setAttribute('aria-label', `Save ${product.name}`);
-			return product;
+			const detailsButton = document.createElement('button');
+			detailsButton.className = 'details-button';
+			detailsButton.type = 'button';
+			detailsButton.textContent = 'Details';
+			const addButton = document.createElement('button');
+			addButton.className = 'add-button';
+			addButton.type = 'button';
+			addButton.textContent = 'Add to bag';
+			actions.append(detailsButton, addButton);
+			card.append(imageWrap, meta, detail, actions);
+			favorite.setAttribute('aria-label', `Save ${product.name}`);
+			return card;
 		});
+		grid.replaceChildren(...cards);
 		const productById = new Map(products.map((product) => [product.id, product]));
-		const cards = [...document.querySelectorAll('.product')];
-		const grid = document.querySelector('.product-grid');
 		const cartDialog = document.querySelector('#cart-drawer');
 		const cartScrim = document.querySelector('#cart-scrim');
 		const productDialog = document.querySelector('#product-dialog');
 		const checkoutDialog = document.querySelector('#checkout-dialog');
 		const validSizes = ['XS', 'S', 'M', 'L', 'XL'];
 		const maxQuantity = 99;
-		const savedCart = loadState(storageKeys.cart, []);
-		let cart = Array.isArray(savedCart) ? savedCart.reduce((items, item) => {
+		const normalizeCart = (savedCart) => Array.isArray(savedCart) ? savedCart.reduce((items, item) => {
 			if (!item || typeof item !== 'object') return items;
 			const id = String(item.id ?? '');
 			const quantity = Number(item.quantity);
@@ -441,16 +436,201 @@
 			else items.push({ id, size: item.size, quantity: Math.min(maxQuantity, quantity) });
 			return items;
 		}, []) : [];
-		const savedFavorites = loadState(storageKeys.favorites, []);
-		let favorites = new Set((Array.isArray(savedFavorites) ? savedFavorites : []).map(String).filter((id) => productById.has(id)));
+		let cart = normalizeCart(loadState(storageKeys.cart, []));
+		const normalizeFavorites = (savedFavorites) => new Set(
+			(Array.isArray(savedFavorites) ? savedFavorites : []).map(String).filter((id) => productById.has(id))
+		);
+		let favorites = normalizeFavorites(loadState(storageKeys.favorites, []));
 		let activeCategory = 'all';
 		let favoritesOnly = false;
 		let selectedProduct = null;
 		let cartCloseTimeout = 0;
+		let paypalButtonsPromise = null;
 
-		const formatPrice = (amount) => `$${amount.toFixed(2)}`;
-		const saveCart = () => saveState(storageKeys.cart, cart);
-		const saveFavorites = () => saveState(storageKeys.favorites, [...favorites]);
+		function reportAccountDataStatus(message, isError = false) {
+			window.dispatchEvent(new CustomEvent('dripdistrict:account-data-status', {
+				detail: { message, isError }
+			}));
+		}
+
+		function saveAccountData() {
+			if (!activeAccount) {
+				saveState(storageKeys.cart, cart);
+				saveState(storageKeys.favorites, [...favorites]);
+				return;
+			}
+			const userId = activeAccount.id;
+			const body = JSON.stringify({ userId, cart, favorites: [...favorites] });
+			accountDataWrite = accountDataWrite.catch(() => {}).then(async () => {
+				if (activeAccount?.id !== userId) return;
+				const response = await fetch('/api/account/data', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body
+				});
+				const result = await response.json();
+				if (!response.ok) throw new Error(result.error || 'Could not save your account data.');
+				if (activeAccount?.id === userId) reportAccountDataStatus('Your changes are saved to your account.');
+			});
+			accountDataWrite.catch((error) => {
+				console.error('Could not save account data:', error);
+				if (activeAccount?.id === userId) {
+					reportAccountDataStatus('Your changes could not be saved. Check your connection and try again.', true);
+				}
+			});
+		}
+
+		const saveCart = () => saveAccountData();
+		const saveFavorites = () => saveAccountData();
+
+		async function setActiveAccount(user) {
+			const previousAccountId = activeAccount?.id ?? null;
+			const guestCart = cart;
+			const guestFavorites = favorites;
+			activeAccount = user;
+			const generation = ++accountGeneration;
+			if (!user) {
+				cart = normalizeCart(loadState(storageKeys.cart, []));
+				favorites = normalizeFavorites(loadState(storageKeys.favorites, []));
+				renderFavorites();
+				renderCatalog();
+				renderCart();
+				reportAccountDataStatus('');
+				return;
+			}
+
+			cart = [];
+			favorites = new Set();
+			renderFavorites();
+			renderCatalog();
+			renderCart();
+			try {
+				const response = await fetch('/api/account/data');
+				const result = await response.json();
+				if (!response.ok) throw new Error(result.error || 'Could not load your account data.');
+				if (generation !== accountGeneration) return;
+				if (!previousAccountId && result.updatedAt === null) {
+					const mergedCart = normalizeCart([...result.cart, ...guestCart]);
+					const mergedFavorites = normalizeFavorites([...result.favorites, ...guestFavorites]);
+					cart = mergedCart;
+					favorites = mergedFavorites;
+					if (cart.length || favorites.size) saveAccountData();
+				} else {
+					cart = normalizeCart(result.cart);
+					favorites = normalizeFavorites(result.favorites);
+				}
+				renderFavorites();
+				renderCatalog();
+				renderCart();
+				if (generation === accountGeneration) {
+					reportAccountDataStatus('Your cart and saved products are synced to your account.');
+				}
+			} catch (error) {
+				if (generation !== accountGeneration) return;
+				console.error('Could not load account data:', error);
+				reportAccountDataStatus('Your account data could not be loaded. Please refresh and try again.', true);
+			}
+		}
+
+		async function initializePayPalButtons() {
+			if (paypalButtonsPromise) return paypalButtonsPromise;
+			paypalButtonsPromise = (async () => {
+				const message = document.querySelector('#checkout-message');
+				const configResponse = await fetch('/api/paypal/config');
+				if (!configResponse.ok) throw new Error(`Payment setup request failed with status ${configResponse.status}.`);
+				const config = await configResponse.json();
+				if (!config.enabled) {
+					message.textContent = 'PayPal is not configured yet. Add your PayPal sandbox credentials to .env and restart the backend.';
+					paypalButtonsPromise = null;
+					return;
+				}
+
+				if (!window.paypal) {
+					await new Promise((resolve, reject) => {
+						const script = document.createElement('script');
+						script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(config.clientId)}&currency=${encodeURIComponent(config.currency)}&intent=capture&components=buttons`;
+						script.onload = resolve;
+						script.onerror = () => reject(new Error('Could not load PayPal Checkout. Check your connection and try again.'));
+						document.head.append(script);
+					});
+				}
+
+				const form = document.querySelector('#checkout-form');
+				await window.paypal.Buttons({
+					style: { layout: 'vertical', shape: 'rect', label: 'paypal' },
+					onClick(_data, actions) {
+						message.textContent = '';
+						if (!form.reportValidity() || cart.length === 0) {
+							if (cart.length === 0) message.textContent = 'Your bag is empty.';
+							return actions.reject();
+						}
+						return actions.resolve();
+					},
+					async createOrder() {
+						try {
+							const response = await fetch('/api/paypal/orders', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									customer: {
+										name: form.querySelector('#checkout-name').value,
+										email: form.querySelector('#checkout-email').value
+									},
+									items: cart
+								})
+							});
+							const result = await response.json();
+							if (!response.ok) throw new Error(result.error || `Checkout setup failed with status ${response.status}.`);
+							return result.id;
+						} catch (error) {
+							console.error('Could not create the PayPal order:', error);
+							message.textContent = error instanceof Error ? error.message : 'Could not start PayPal checkout.';
+							throw error;
+						}
+					},
+					async onApprove(data) {
+						try {
+							const response = await fetch(`/api/paypal/orders/${encodeURIComponent(data.orderID)}/capture`, { method: 'POST' });
+							const result = await response.json();
+							if (!response.ok) throw new Error(result.error || `Payment confirmation failed with status ${response.status}.`);
+							if (result.status !== 'completed') throw new Error('PayPal has not confirmed the payment yet.');
+
+							cart = [];
+							saveCart();
+							renderCart();
+							const success = document.createElement('div');
+							success.className = 'checkout-success';
+							const title = document.createElement('h3');
+							title.textContent = 'Payment received';
+							const confirmation = document.createElement('p');
+							confirmation.textContent = result.shippingAddressReceived
+								? `Your order ${result.orderId.slice(0, 8)} is confirmed.`
+								: `Payment succeeded for order ${result.orderId.slice(0, 8)}. Contact the shop to confirm shipping details.`;
+							success.append(title, confirmation);
+							form.hidden = true;
+							document.querySelector('#checkout-body').append(success);
+						} catch (error) {
+							console.error('Could not confirm the PayPal payment:', error);
+							message.textContent = error instanceof Error ? error.message : 'Could not confirm your payment. Contact the shop before trying again.';
+						}
+					},
+					onCancel() {
+						message.textContent = 'Checkout cancelled. You have not been charged.';
+					},
+					onError(error) {
+						console.error('PayPal Checkout failed:', error);
+						if (!message.textContent) message.textContent = 'PayPal checkout failed. Please try again.';
+					}
+				}).render('#paypal-button-container');
+			})();
+			try {
+				await paypalButtonsPromise;
+			} catch (error) {
+				paypalButtonsPromise = null;
+				console.error('Could not initialize PayPal Checkout:', error);
+				throw error;
+			}
+		}
 
 		function renderCatalog() {
 			const query = document.querySelector('#search').value.trim().toLowerCase();
@@ -704,34 +884,28 @@
 			const checkoutBody = document.querySelector('#checkout-body');
 			const checkoutForm = document.querySelector('#checkout-form');
 			checkoutForm.reset();
+			document.querySelector('#checkout-message').textContent = '';
 			checkoutForm.hidden = false;
 			checkoutBody.querySelector('.checkout-success')?.remove();
 			checkoutDialog.showModal();
-		});
-		document.querySelector('#checkout-form').addEventListener('submit', (event) => {
-			event.preventDefault();
-			cart = [];
-			saveCart();
-			renderCart();
-			const body = document.querySelector('#checkout-body');
-			const success = document.createElement('div');
-			success.className = 'checkout-success';
-			const title = document.createElement('h3');
-			title.textContent = 'Order placed';
-			const message = document.createElement('p');
-			message.textContent = 'Thanks for trying the demo shop. No payment was taken.';
-			success.append(title, message);
-			event.currentTarget.hidden = true;
-			body.append(success);
+			initializePayPalButtons().catch((error) => {
+				document.querySelector('#checkout-message').textContent = error.message;
+			});
 		});
 
 		document.querySelectorAll('[data-count]').forEach((count) => {
 			const amount = count.dataset.count === 'all' ? products.length : products.filter((product) => product.category === count.dataset.count).length;
 			count.textContent = String(amount);
 		});
+		storeReady = true;
+		if (pendingAccount) void setActiveAccount(pendingAccount);
 		renderFavorites();
 		renderCatalog();
 		renderCart();
+	}
+
+	initializeStore();
 	</script>
+	<script type="module" src="/src/auth.js"></script>
 </body>
 </html>

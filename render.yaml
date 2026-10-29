@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: drip-district-preview
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_MODE
+        value: preview
+      - key: HOST
+        value: 0.0.0.0
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CURRENCY
+        value: USD
