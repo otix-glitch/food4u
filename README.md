@@ -34,7 +34,28 @@ The built-in account feature does not need Supabase or another identity provider
 
 Account data is stored in `data/auth.json`, which is git-ignored. This file-based store is intended for local testing, not a production deployment; use a durable, access-controlled database with backups before opening registration to customers. On production, set `APP_ORIGIN` to the exact public HTTPS origin of the storefront (for example, `https://shop.example.com`). Production mode requires this setting and marks session cookies `Secure`. Local development can leave it unset.
 
-There is no email verification or password-reset service: addresses are not verified and forgotten passwords cannot currently be recovered. Make this limitation clear to users before production use, and plan a secure account recovery process. Signup and login attempts are rate-limited in the API process; for multi-instance production hosting, use shared rate limiting and storage.
+Email/password signup addresses are not verified. Password reset is supported when SMTP delivery is configured. Set `SMTP_HOST`, `SMTP_PORT`, and `SMTP_FROM`, then either set both `SMTP_USER` and `SMTP_PASSWORD` or leave both blank for a trusted relay. Use `SMTP_SECURE=true` for implicit TLS (normally port 465); port 587 uses STARTTLS. Reset links are single-use, expire after 15 minutes, and invalidate existing sessions when used. Reset requests are rate-limited with other account mutations and return the same response whether or not an account exists. Password reset is unavailable in the public preview and when SMTP is not configured. For multi-instance production hosting, use shared rate limiting and persistent account storage.
+
+Example SMTP configuration:
+
+```dotenv
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+SMTP_FROM=Drip District <support@example.com>
+```
+
+Keep SMTP credentials private and configure them as deployment secrets in production. Delivery failures are logged by the API, and undelivered reset tokens are revoked.
+
+### Google and Apple sign-in
+
+Email/password sign-in remains available. To enable Google, create a Google OAuth **Web application** client and configure its authorized redirect URI as `${APP_ORIGIN}/api/auth/google/callback`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+To enable Apple, create a Sign in with Apple Services ID, enable it for your primary App ID, and register the storefront domain and return URL `${APP_ORIGIN}/api/auth/apple/callback`. Set `APPLE_CLIENT_ID` to the Services ID, plus `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and the contents of the Apple `.p8` key in `APPLE_PRIVATE_KEY`. For `.env`, represent newlines in the private key as `\n`. The server signs short-lived client assertions; the private key stays on the server.
+
+Set `APP_ORIGIN` to the exact storefront origin used by customers and register callback URLs with the same scheme, host, and port. Local development defaults to `http://127.0.0.1:5173`; configure matching local redirect URLs in providers that allow them. OAuth uses authorization code flow with PKCE, state, and nonce checks. Provider email must be verified; a verified address is linked to an existing account with the same email. Provider settings are optional, and their buttons appear only when configured. Keep all provider secrets in ignored `.env` locally and deployment secrets in production. OAuth transaction state is held in the API process, so run one API instance unless that state is moved to shared storage.
 
 ### Configure PayPal sandbox payments
 
@@ -60,6 +81,10 @@ Available API endpoints:
 - `GET /api/health` — backend health check.
 - `POST /api/auth/signup` — creates an account with a salted password hash.
 - `POST /api/auth/login` — checks credentials and sets a server-managed session cookie.
+- `GET /api/auth/google/start` and `GET /api/auth/google/callback` — Google OpenID Connect sign-in.
+- `GET /api/auth/apple/start` and `GET /api/auth/apple/callback` — Apple OpenID Connect sign-in.
+- `POST /api/auth/password-reset/request` — sends a single-use reset link when the email belongs to an account.
+- `POST /api/auth/password-reset/complete` — changes the password using a valid reset token and revokes existing sessions.
 - `GET /api/auth/me` — returns the profile for the current session.
 - `POST /api/auth/logout` — invalidates the current session and clears its cookie.
 - `GET /api/products` — catalog, optionally filtered with `category` or `search` query parameters.

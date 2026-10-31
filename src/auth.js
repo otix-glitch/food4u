@@ -1,5 +1,7 @@
 const authDialog = document.querySelector('#auth-dialog');
 const authForm = document.querySelector('#auth-form');
+const passwordResetRequestForm = document.querySelector('#password-reset-request-form');
+const passwordResetForm = document.querySelector('#password-reset-form');
 const authTrigger = document.querySelector('#auth-trigger');
 const authMessage = document.querySelector('#auth-message');
 const authSubmit = document.querySelector('#auth-submit');
@@ -12,8 +14,29 @@ const authEmail = document.querySelector('#auth-email');
 const authModeActions = document.querySelector('#auth-mode-actions');
 const authPassword = document.querySelector('#auth-password-input');
 const authWarning = document.querySelector('#auth-warning');
+const authRecoveryActions = document.querySelector('#auth-recovery-actions');
+const socialLoginActions = document.querySelector('#social-login-actions');
+const socialLoginSeparator = document.querySelector('#social-login-separator');
+const resetRequestEmail = document.querySelector('#reset-request-email');
+const resetNewPassword = document.querySelector('#reset-new-password');
+const resetConfirmPassword = document.querySelector('#reset-confirm-password');
 let currentUser = null;
 let mode = 'sign_in';
+const initialUrl = new URL(window.location.href);
+let resetToken = initialUrl.searchParams.get('resetToken')
+	?? new URLSearchParams(initialUrl.hash.slice(1)).get('resetToken')
+	?? '';
+
+function clearResetTokenFromUrl() {
+	const url = new URL(window.location.href);
+	url.searchParams.delete('resetToken');
+	const hashParams = new URLSearchParams(url.hash.slice(1));
+	if (hashParams.has('resetToken')) {
+		hashParams.delete('resetToken');
+		url.hash = hashParams.size ? hashParams.toString() : '';
+	}
+	window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+}
 
 function updateCurrentUser(user) {
 	currentUser = user;
@@ -105,24 +128,40 @@ async function authRequest(path, { method = 'GET', body } = {}) {
 
 function renderAuth() {
 	const isSignedIn = Boolean(currentUser);
+	const isAccountMode = mode === 'sign_in' || mode === 'sign_up';
 	authTrigger.textContent = isSignedIn ? 'Account' : 'Sign in';
 	authTrigger.setAttribute('aria-label', isSignedIn ? `Account for ${currentUser.email}` : 'Sign in to your account');
-	authForm.hidden = isSignedIn;
-	authModeActions.hidden = isSignedIn;
+	authForm.hidden = isSignedIn || !isAccountMode;
+	passwordResetRequestForm.hidden = isSignedIn || mode !== 'forgot';
+	passwordResetForm.hidden = isSignedIn || mode !== 'reset';
+	authRecoveryActions.hidden = isSignedIn || mode !== 'sign_in';
+	const showSocialLogin = !isSignedIn && mode === 'sign_in'
+		&& [...socialLoginActions.querySelectorAll('[data-oauth-provider]')].some((button) => !button.hidden);
+	socialLoginActions.hidden = !showSocialLogin;
+	socialLoginSeparator.hidden = !showSocialLogin;
+	authModeActions.hidden = isSignedIn || !isAccountMode;
 	authSignedIn.hidden = !isSignedIn;
 	if (isSignedIn) authEmail.textContent = currentUser.email;
-	authTitle.textContent = isSignedIn ? 'Your account' : mode === 'sign_up' ? 'Create account' : 'Sign in';
+	authTitle.textContent = isSignedIn ? 'Your account'
+		: mode === 'sign_up' ? 'Create account'
+			: mode === 'forgot' ? 'Reset your password'
+				: mode === 'reset' ? 'Choose a new password' : 'Sign in';
 	authDescription.textContent = isSignedIn
 		? 'Your Drip District account.'
-		: mode === 'sign_up' ? 'Create an account with your email and password.' : 'Sign in to your Drip District account.';
+		: mode === 'sign_up' ? 'Create an account with your email and password.'
+			: mode === 'forgot' ? 'Enter your email and we’ll send a reset link if an account matches.'
+				: mode === 'reset' ? 'Choose a new password for your account.'
+					: 'Sign in to your Drip District account.';
 	authModeDescription.textContent = mode === 'sign_up' ? 'Already have an account?' : 'New here?';
 	authModeToggle.textContent = mode === 'sign_up' ? 'Sign in' : 'Create account';
 	authSubmit.textContent = mode === 'sign_up' ? 'Create account' : 'Sign in';
 	authPassword.autocomplete = mode === 'sign_up' ? 'new-password' : 'current-password';
-	authWarning.hidden = false;
+	authWarning.hidden = isSignedIn || !isAccountMode;
 }
 
 async function loadCurrentUser() {
+	let returnProvider = '';
+	let returnError = '';
 	try {
 		const response = await fetch('/api/config');
 		const config = await response.json();
@@ -130,6 +169,24 @@ async function loadCurrentUser() {
 		if (!config.accountsEnabled) {
 			authTrigger.hidden = true;
 			return;
+		}
+		const providers = config.socialProviders ?? {};
+		for (const button of socialLoginActions.querySelectorAll('[data-oauth-provider]')) {
+			button.hidden = providers[button.dataset.oauthProvider] !== true;
+		}
+		returnProvider = new URLSearchParams(window.location.search).get('auth') ?? '';
+		returnError = new URLSearchParams(window.location.search).get('authError') ?? '';
+		if (resetToken) {
+			mode = 'reset';
+			renderAuth();
+			authDialog.showModal();
+			return;
+		}
+		if (returnProvider || returnError) {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('auth');
+			url.searchParams.delete('authError');
+			window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 		}
 	} catch (error) {
 		console.error('Could not load account settings:', error);
@@ -143,9 +200,21 @@ async function loadCurrentUser() {
 		}
 		updateCurrentUser(null);
 	}
-	if (!currentUser && !authDialog.open) {
+	if (returnProvider) {
+		mode = 'sign_in';
+		renderAuth();
+		showMessage(authMessage, `You are signed in with ${returnProvider === 'apple' ? 'Apple' : 'Google'}.`);
 		authDialog.showModal();
-		authForm.elements.email.focus();
+	} else if (returnError) {
+		mode = 'sign_in';
+		renderAuth();
+		const messages = {
+			oauth_cancelled: 'Sign-in was cancelled.',
+			unverified_email: 'The provider did not return a verified email address.',
+			oauth_failed: 'Could not complete sign-in. Please try again.'
+		};
+		showMessage(authMessage, messages[returnError] ?? messages.oauth_failed, true);
+		authDialog.showModal();
 	}
 }
 
@@ -161,11 +230,84 @@ authDialog.addEventListener('click', (event) => {
 	if (event.target === authDialog) authDialog.close();
 });
 
+socialLoginActions.addEventListener('click', (event) => {
+	const button = event.target.closest('[data-oauth-provider]');
+	if (!button || button.hidden) return;
+	window.location.assign(`/api/auth/${encodeURIComponent(button.dataset.oauthProvider)}/start`);
+});
+
 authModeToggle.addEventListener('click', () => {
 	mode = mode === 'sign_in' ? 'sign_up' : 'sign_in';
 	authForm.reset();
 	showMessage(authMessage, '');
 	renderAuth();
+});
+
+document.querySelector('#auth-forgot-password').addEventListener('click', () => {
+	resetRequestEmail.value = authForm.elements.email.value.trim();
+	mode = 'forgot';
+	showMessage(authMessage, '');
+	renderAuth();
+});
+
+document.querySelectorAll('[data-auth-back]').forEach((button) => {
+	button.addEventListener('click', () => {
+		mode = 'sign_in';
+		resetToken = '';
+		passwordResetRequestForm.reset();
+		passwordResetForm.reset();
+		showMessage(authMessage, '');
+		clearResetTokenFromUrl();
+		renderAuth();
+	});
+});
+
+passwordResetRequestForm.addEventListener('submit', async (event) => {
+	event.preventDefault();
+	const submit = passwordResetRequestForm.querySelector('button[type="submit"]');
+	submit.disabled = true;
+	showMessage(authMessage, '');
+	try {
+		const result = await authRequest('password-reset/request', {
+			method: 'POST',
+			body: { email: resetRequestEmail.value.trim() }
+		});
+		showMessage(authMessage, result.message);
+	} catch (error) {
+		console.error('Could not request a password reset:', error);
+		showMessage(authMessage, error instanceof Error ? error.message : 'Could not request a password reset.', true);
+	} finally {
+		submit.disabled = false;
+	}
+});
+
+passwordResetForm.addEventListener('submit', async (event) => {
+	event.preventDefault();
+	const submit = passwordResetForm.querySelector('button[type="submit"]');
+	submit.disabled = true;
+	showMessage(authMessage, '');
+	if (resetNewPassword.value !== resetConfirmPassword.value) {
+		showMessage(authMessage, 'The passwords do not match.', true);
+		submit.disabled = false;
+		return;
+	}
+	try {
+		const result = await authRequest('password-reset/complete', {
+			method: 'POST',
+			body: { token: resetToken, password: resetNewPassword.value }
+		});
+		resetToken = '';
+		passwordResetForm.reset();
+		mode = 'sign_in';
+		clearResetTokenFromUrl();
+		renderAuth();
+		showMessage(authMessage, result.message);
+	} catch (error) {
+		console.error('Could not reset the password:', error);
+		showMessage(authMessage, error instanceof Error ? error.message : 'Could not reset your password.', true);
+	} finally {
+		submit.disabled = false;
+	}
 });
 
 authForm.addEventListener('submit', async (event) => {

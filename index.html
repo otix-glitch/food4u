@@ -25,6 +25,9 @@
 		a { color: inherit; text-decoration: none; }
 		button, input { color: inherit; font: inherit; }
 		button { cursor: pointer; }
+		:where(a, button, input, select):focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+		.skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 11px 14px; transform: translateY(-160%); background: var(--ink); color: white; font-size: 12px; font-weight: 700; }
+		.skip-link:focus { transform: translateY(0); }
 		.announcement { display: flex; min-height: 34px; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-align: center; text-transform: uppercase; }
 		.header { position: relative; z-index: 5; display: grid; min-height: 78px; grid-template-columns: auto 1fr auto; align-items: center; padding: 0 5.4%; border-bottom: 1px solid var(--line); }
 		.nav-links, .header-tools { display: flex; align-items: center; gap: 27px; }
@@ -145,6 +148,21 @@
 		.app-actions button:hover, .app-actions button[aria-pressed="true"] { border-color: var(--ink); }
 		.app-actions .bag-button { border-color: var(--ink); background: var(--ink); color: white; }
 		.app-actions .bag-count { width: 20px; height: 20px; background: var(--orange); }
+		.shop-spotlight { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; max-width: 1480px; margin: 22px auto 0; padding: 0 5%; }
+		.spotlight-copy { display: flex; flex-direction: column; justify-content: center; min-height: 220px; padding: 32px 30px; border-radius: 18px; background: linear-gradient(135deg, #171715, #2a2927); color: #f7f2ea; }
+		.spotlight-copy .eyebrow { color: rgba(255,255,255,.8); }
+		.spotlight-copy .eyebrow::before { background: var(--orange); }
+		.spotlight-copy h2 { margin: 16px 0 10px; font-family: var(--display); font-size: clamp(34px, 4vw, 55px); line-height: .96; letter-spacing: -.06em; }
+		.spotlight-copy p { max-width: 480px; margin: 0; color: rgba(247,242,234,.8); font-size: 13px; line-height: 1.7; }
+		.spotlight-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+		.spotlight-card { display: flex; min-height: 220px; flex-direction: column; justify-content: space-between; padding: 18px 18px 16px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.38); }
+		.spotlight-card span { color: var(--orange); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+		.spotlight-card h3 { margin: 18px 0 10px; font-family: var(--display); font-size: 24px; }
+		.spotlight-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+		.toast { position: fixed; right: 22px; bottom: 22px; z-index: 50; max-width: min(360px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 999px; background: rgba(23,23,21,.92); color: white; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+		.toast.is-visible { opacity: 1; transform: translateY(0); }
+		.toast.is-success { background: rgba(26, 85, 52, .94); }
+		.toast.is-warning { background: rgba(189, 93, 35, .96); }
 		.app-layout { display: grid; max-width: 1480px; grid-template-columns: 205px minmax(0, 1fr); gap: 42px; margin: 0 auto; padding: 42px 5% 80px; }
 		.filter-panel { position: sticky; top: 112px; align-self: start; }
 		.filter-panel h2 { margin: 0 0 21px; font-family: var(--display); font-size: 18px; }
@@ -173,6 +191,8 @@
 		.product-actions .details-button { padding: 0 11px; }
 		.empty-state { grid-column: 1 / -1; padding: 70px 20px; color: var(--muted); text-align: center; }
 		.empty-state h2 { color: var(--ink); font-family: var(--display); }
+		.empty-clear-filters { margin-top: 10px; padding: 10px 14px; border: 1px solid var(--ink); border-radius: 3px; background: transparent; font-size: 11px; font-weight: 700; }
+		.empty-clear-filters:hover { background: var(--ink); color: white; }
 		.cart-scrim { position: fixed; inset: 0; z-index: 19; visibility: hidden; background: rgba(23,23,21,.42); opacity: 0; transition: opacity .2s, visibility .2s; }
 		.cart-scrim.is-open { visibility: visible; opacity: 1; }
 		.cart-scrim[hidden] { display: none; }
@@ -227,8 +247,10 @@
 		.checkout-success { padding: 36px 0 12px; text-align: center; }
 		.checkout-success p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 		.catalog-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
-		@media (max-width: 900px) { .app-layout { grid-template-columns: 165px minmax(0,1fr); gap: 24px; padding-right: 4%; padding-left: 4%; } .product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .app-header { gap: 18px; padding: 0 4%; } }
+		@media (max-width: 900px) { .shop-spotlight { grid-template-columns: 1fr; padding: 0 4%; } .spotlight-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .app-layout { grid-template-columns: 165px minmax(0,1fr); gap: 24px; padding-right: 4%; padding-left: 4%; } .product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .app-header { gap: 18px; padding: 0 4%; } }
 		@media (max-width: 650px) {
+			.shop-spotlight { margin-top: 14px; }
+			.spotlight-cards { grid-template-columns: 1fr; }
 			.app-header { grid-template-columns: 1fr auto; gap: 10px; padding: 10px 4%; }
 			.app-brand { font-size: 20px; }
 			.search-box { grid-column: 1 / -1; grid-row: 2; }
@@ -236,9 +258,10 @@
 			.app-actions button { min-height: 34px; padding: 0 8px; font-size: 10px; }
 			.app-layout { display: block; padding: 25px 4% 50px; }
 			.filter-panel { position: static; margin-bottom: 26px; }
-			.filter-panel h2, .filter-label, .clear-filters { display: none; }
+			.filter-panel h2, .filter-label { display: none; }
 			.category-list { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; }
 			.category-button { width: auto; flex: 0 0 auto; gap: 10px; border: 1px solid var(--line); border-radius: 3px; }
+			.clear-filters { margin-top: 9px; }
 			.catalog-heading { align-items: flex-start; flex-direction: column; gap: 13px; }
 			.catalog-tools { align-self: stretch; justify-content: space-between; }
 			.product-grid { gap: 23px 10px; }
@@ -253,6 +276,7 @@
 	</style>
 </head>
 <body>
+	<a class="skip-link" href="#shop">Skip to products</a>
 	<header class="app-header">
 		<a class="wordmark app-brand" href="#shop" aria-label="Drip District shop">DRIP<span>.</span>DISTRICT</a>
 		<label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><span class="visually-hidden">Search products</span><input id="search" type="search" placeholder="Search products..." autocomplete="off"></label>
@@ -262,6 +286,33 @@
 			<button class="bag-button" id="open-cart" type="button" aria-label="Open shopping bag, 0 items" aria-expanded="false" aria-controls="cart-drawer">Bag <span class="bag-count" aria-live="polite">0</span></button>
 		</div>
 	</header>
+
+	<section class="shop-spotlight" aria-label="Featured collection highlights">
+		<div class="spotlight-copy">
+			<div class="eyebrow">Fresh drop</div>
+			<h2>Built for everyday motion.</h2>
+			<p>Layered essentials, easy denim, and carry pieces made to ride the city from sunrise to late-night plans.</p>
+		</div>
+		<div class="spotlight-cards">
+			<article class="spotlight-card">
+				<span>01</span>
+				<h3>Essentials</h3>
+				<p>Clean silhouettes that work from commute to coffee runs.</p>
+			</article>
+			<article class="spotlight-card">
+				<span>02</span>
+				<h3>Layering</h3>
+				<p>Structured fills and breathable fabrics for all-day wear.</p>
+			</article>
+			<article class="spotlight-card">
+				<span>03</span>
+				<h3>Carry</h3>
+				<p>Utility pieces that keep your essentials dialed in.</p>
+			</article>
+		</div>
+	</section>
+
+	<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 	<main class="app-layout" id="shop">
 		<aside class="filter-panel" aria-label="Product filters">
@@ -279,7 +330,7 @@
 		<section class="catalog" aria-labelledby="catalog-title">
 			<div class="catalog-heading">
 				<div><div class="eyebrow">Drip District / Shop</div><h1 id="catalog-title">All pieces</h1><div class="results-count" id="results-count" aria-live="polite">Loading products…</div></div>
-				<div class="catalog-tools"><label for="sort-products">Sort by</label><select id="sort-products"><option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select></div>
+				<div class="catalog-tools"><label for="sort-products">Sort by</label><select id="sort-products"><option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select><button class="filter-button" id="compare-products" type="button" disabled>Compare (0)</button></div>
 			</div>
 			<div class="product-grid" aria-live="polite"></div>
 		</section>
@@ -294,7 +345,14 @@
 	</aside>
 
 	<dialog class="product-dialog" id="product-dialog" aria-labelledby="detail-name">
-		<div class="dialog-content"><div class="dialog-header"><div><h2 id="detail-name"></h2><p class="dialog-price" id="detail-price"></p></div><button class="icon-button" type="button" data-close-product aria-label="Close product details">×</button></div><img class="dialog-image" id="detail-image" alt=""><p class="dialog-description" id="detail-description"></p><label for="detail-size">Size</label><select id="detail-size"><option value="XS">XS</option><option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option></select><button class="checkout-button dialog-add" id="detail-add" type="button">Add to bag</button></div>
+		<div class="dialog-content"><div class="dialog-header"><div><h2 id="detail-name"></h2><p class="dialog-price" id="detail-price"></p></div><button class="icon-button" type="button" data-close-product aria-label="Close product details">×</button></div><img class="dialog-image" id="detail-image" alt=""><p class="dialog-description" id="detail-description"></p><label for="detail-size">Size</label><select id="detail-size"><option value="XS">XS</option><option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option></select><button class="checkout-button dialog-add" id="detail-add" type="button">Add to bag</button><button class="filter-button dialog-add" id="detail-compare" type="button">Add to comparison</button></div>
+	</dialog>
+
+	<dialog id="comparison-dialog" aria-labelledby="comparison-title">
+		<div class="dialog-content">
+			<div class="dialog-header"><h2 id="comparison-title">Compare products</h2><button class="icon-button" type="button" data-close-comparison aria-label="Close comparison">×</button></div>
+			<div id="comparison-content"></div>
+		</div>
 	</dialog>
 
 	<dialog id="auth-dialog" aria-labelledby="auth-title">
@@ -314,13 +372,30 @@
 				<div class="auth-actions"><button type="button" id="auth-sign-out">Sign out</button></div>
 			</div>
 			<p class="auth-message" id="auth-message" role="status" aria-live="polite"></p>
+			<div class="auth-actions" id="social-login-actions" hidden>
+				<button type="button" data-oauth-provider="google" hidden>Continue with Google</button>
+				<button type="button" data-oauth-provider="apple" hidden>Continue with Apple</button>
+			</div>
+			<p class="auth-description" id="social-login-separator" hidden>Or sign in with email</p>
 			<form class="auth-form" id="auth-form">
 				<div><label for="auth-email-input">Email</label><input id="auth-email-input" name="email" type="email" autocomplete="email" required maxlength="254"></div>
 				<div><label for="auth-password-input">Password</label><input id="auth-password-input" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128"></div>
 				<button class="checkout-button" id="auth-submit" type="submit">Sign in</button>
 			</form>
+			<div class="auth-actions" id="auth-recovery-actions"><button type="button" id="auth-forgot-password">Forgot password?</button></div>
+			<form class="auth-form" id="password-reset-request-form" hidden>
+				<div><label for="reset-request-email">Email</label><input id="reset-request-email" name="email" type="email" autocomplete="email" required maxlength="254"></div>
+				<button class="checkout-button" type="submit">Send reset link</button>
+				<div class="auth-actions"><button type="button" data-auth-back>Back to sign in</button></div>
+			</form>
+			<form class="auth-form" id="password-reset-form" hidden>
+				<div><label for="reset-new-password">New password</label><input id="reset-new-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></div>
+				<div><label for="reset-confirm-password">Confirm new password</label><input id="reset-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></div>
+				<button class="checkout-button" type="submit">Reset password</button>
+				<div class="auth-actions"><button type="button" data-auth-back>Back to sign in</button></div>
+			</form>
 			<div class="auth-actions" id="auth-mode-actions"><span class="auth-description" id="auth-mode-description">New here?</span><button type="button" id="auth-mode-toggle">Create account</button></div>
-			<p class="auth-description" id="auth-warning">Email addresses are not verified, and password reset is unavailable. Use an email you can access and keep your password safe.</p>
+			<p class="auth-description" id="auth-warning">Password reset links expire after 15 minutes. Email addresses are not verified.</p>
 		</div>
 	</dialog>
 
@@ -329,8 +404,21 @@
 	</dialog>
 
 	<script type="module">
+		const toast = document.querySelector('#toast');
+		let toastTimer = 0;
+		function showToast(message, tone = 'default') {
+			if (!toast) return;
+			window.clearTimeout(toastTimer);
+			toast.textContent = message;
+			toast.classList.remove('is-visible', 'is-success', 'is-warning');
+			if (tone === 'success') toast.classList.add('is-success');
+			if (tone === 'warning') toast.classList.add('is-warning');
+			toast.classList.add('is-visible');
+			toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+		}
+
 	async function initializeStore() {
-		const storageKeys = { cart: 'drip-district-cart', favorites: 'drip-district-favorites' };
+		const storageKeys = { cart: 'drip-district-cart', favorites: 'drip-district-favorites', comparison: 'drip-district-comparison' };
 		let activeAccount = null;
 		let pendingAccount = window.dripDistrictAccount ?? null;
 		let storeReady = false;
@@ -423,6 +511,7 @@
 		const cartDialog = document.querySelector('#cart-drawer');
 		const cartScrim = document.querySelector('#cart-scrim');
 		const productDialog = document.querySelector('#product-dialog');
+		const comparisonDialog = document.querySelector('#comparison-dialog');
 		const checkoutDialog = document.querySelector('#checkout-dialog');
 		const validSizes = ['XS', 'S', 'M', 'L', 'XL'];
 		const maxQuantity = 99;
@@ -441,6 +530,10 @@
 			(Array.isArray(savedFavorites) ? savedFavorites : []).map(String).filter((id) => productById.has(id))
 		);
 		let favorites = normalizeFavorites(loadState(storageKeys.favorites, []));
+		const normalizeComparison = (savedComparison) => [...new Set(
+			(Array.isArray(savedComparison) ? savedComparison : []).map(String).filter((id) => productById.has(id))
+		)].slice(0, 3);
+		let comparison = normalizeComparison(loadState(storageKeys.comparison, []));
 		let activeCategory = 'all';
 		let favoritesOnly = false;
 		let selectedProduct = null;
@@ -649,7 +742,15 @@
 			if (!emptyState) {
 				emptyState = document.createElement('div');
 				emptyState.className = 'empty-state';
-				emptyState.innerHTML = '<h2>No pieces found</h2><p>Try another search or clear your filters.</p>';
+				const heading = document.createElement('h2');
+				heading.textContent = 'No pieces found';
+				const description = document.createElement('p');
+				description.textContent = 'Try another search or clear your filters.';
+				const clearButton = document.createElement('button');
+				clearButton.className = 'empty-clear-filters';
+				clearButton.type = 'button';
+				clearButton.textContent = 'Clear filters';
+				emptyState.append(heading, description, clearButton);
 				grid.append(emptyState);
 			}
 			emptyState.hidden = visible.length > 0;
@@ -657,6 +758,112 @@
 			document.querySelector('#catalog-footer-count').textContent = `Showing ${visible.length} ${visible.length === 1 ? 'product' : 'products'}`;
 			document.querySelector('#catalog-title').textContent = favoritesOnly ? 'Saved pieces' : activeCategory === 'all' ? 'All pieces' : `${activeCategory[0].toUpperCase()}${activeCategory.slice(1)}`;
 			document.querySelectorAll('.category-button').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.category === activeCategory && !favoritesOnly)));
+		}
+
+		function renderComparisonControls() {
+			const compareButton = document.querySelector('#compare-products');
+			compareButton.textContent = `Compare (${comparison.length})`;
+			compareButton.disabled = comparison.length < 2;
+			cards.forEach((card) => {
+				const detailsButton = card.querySelector('.details-button');
+				const product = productById.get(card.dataset.id);
+				const isSelected = comparison.includes(card.dataset.id);
+				detailsButton.setAttribute('aria-label', isSelected
+					? `View details for ${product.name}, selected for comparison`
+					: `View details for ${product.name}`);
+			});
+			const detailCompareButton = document.querySelector('#detail-compare');
+			if (selectedProduct) {
+				const isSelected = comparison.includes(selectedProduct.id);
+				detailCompareButton.textContent = isSelected ? 'Remove from comparison' : 'Add to comparison';
+				detailCompareButton.setAttribute('aria-pressed', String(isSelected));
+			}
+		}
+
+		function renderComparison() {
+			const container = document.querySelector('#comparison-content');
+			container.replaceChildren();
+			if (comparison.length < 2) {
+				const message = document.createElement('p');
+				message.className = 'dialog-description';
+				message.textContent = 'Select at least two products to compare. You can compare up to three at a time.';
+				container.append(message);
+				return;
+			}
+
+			const selectedProducts = comparison.map((id) => productById.get(id));
+			const table = document.createElement('table');
+			const head = document.createElement('thead');
+			const headerRow = document.createElement('tr');
+			const featureHeading = document.createElement('th');
+			featureHeading.scope = 'col';
+			featureHeading.textContent = 'Feature';
+			headerRow.append(featureHeading);
+			for (const product of selectedProducts) {
+				const heading = document.createElement('th');
+				heading.scope = 'col';
+				heading.textContent = product.name;
+				headerRow.append(heading);
+			}
+			head.append(headerRow);
+			table.append(head);
+
+			const body = document.createElement('tbody');
+			const rows = [
+				['Price', (product) => formatPrice(product.price)],
+				['Category', (product) => product.category],
+				['Details', (product) => product.detail],
+				['Collection tag', (product) => product.tag]
+			];
+			for (const [label, getValue] of rows) {
+				const row = document.createElement('tr');
+				const heading = document.createElement('th');
+				heading.scope = 'row';
+				heading.textContent = label;
+				row.append(heading);
+				for (const product of selectedProducts) {
+					const cell = document.createElement('td');
+					cell.textContent = getValue(product);
+					row.append(cell);
+				}
+				body.append(row);
+			}
+
+			const removeRow = document.createElement('tr');
+			const removeHeading = document.createElement('th');
+			removeHeading.scope = 'row';
+			removeHeading.textContent = 'Actions';
+			removeRow.append(removeHeading);
+			for (const product of selectedProducts) {
+				const cell = document.createElement('td');
+				const removeButton = document.createElement('button');
+				removeButton.className = 'details-button';
+				removeButton.type = 'button';
+				removeButton.dataset.removeComparison = product.id;
+				removeButton.textContent = 'Remove';
+				removeButton.setAttribute('aria-label', `Remove ${product.name} from comparison`);
+				cell.append(removeButton);
+				removeRow.append(cell);
+			}
+			body.append(removeRow);
+			table.append(body);
+			container.append(table);
+		}
+
+		function toggleComparison(product) {
+			if (comparison.includes(product.id)) {
+				comparison = comparison.filter((id) => id !== product.id);
+				showToast(`${product.name} removed from comparison`);
+			} else if (comparison.length >= 3) {
+				showToast('Compare up to 3 products at a time', 'warning');
+				return;
+			} else {
+				comparison.push(product.id);
+				showToast(`${product.name} added to comparison`, 'success');
+			}
+			saveState(storageKeys.comparison, comparison);
+			renderComparisonControls();
+			if (comparisonDialog.open) renderComparison();
 		}
 
 		function renderFavorites() {
@@ -718,7 +925,7 @@
 				increase.dataset.cartAction = 'increase';
 				increase.dataset.id = item.id;
 				increase.dataset.size = item.size;
-				increase.disabled = item.quantity >= 99;
+				increase.disabled = item.quantity >= maxQuantity;
 				increase.setAttribute('aria-label', `Increase ${product.name} quantity`);
 				increase.textContent = '+';
 				quantity.append(decrease, amount, increase);
@@ -743,6 +950,7 @@
 			else cart.push({ id: product.id, size, quantity: 1 });
 			saveCart();
 			renderCart();
+			showToast(`${product.name} added to bag`, 'success');
 			return true;
 		}
 
@@ -793,24 +1001,32 @@
 			renderCatalog();
 			event.currentTarget.setAttribute('aria-pressed', String(favoritesOnly));
 		});
-		document.querySelector('#clear-filters').addEventListener('click', () => {
+		function clearFilters() {
 			activeCategory = 'all';
 			favoritesOnly = false;
 			document.querySelector('#search').value = '';
 			document.querySelector('#sort-products').value = 'featured';
 			renderFavorites();
 			renderCatalog();
-		});
+		}
+
+		document.querySelector('#clear-filters').addEventListener('click', clearFilters);
 
 		grid.addEventListener('click', (event) => {
+			if (event.target.closest('.empty-clear-filters')) {
+				clearFilters();
+				return;
+			}
 			const card = event.target.closest('.product');
 			if (!card) return;
 			const product = productById.get(card.dataset.id);
 			if (event.target.closest('.wish-button')) {
-				if (favorites.has(product.id)) favorites.delete(product.id);
+				const isSaved = favorites.has(product.id);
+				if (isSaved) favorites.delete(product.id);
 				else favorites.add(product.id);
 				saveFavorites();
 				renderFavorites();
+				showToast(isSaved ? 'Removed from saved items' : 'Saved to your list', isSaved ? 'warning' : 'success');
 				if (favoritesOnly) renderCatalog();
 			}
 			if (event.target.closest('.details-button')) {
@@ -820,6 +1036,7 @@
 				document.querySelector('#detail-image').src = product.image;
 				document.querySelector('#detail-image').alt = product.imageAlt;
 				document.querySelector('#detail-description').textContent = `${product.detail}. Designed for everyday wear.`;
+				renderComparisonControls();
 				productDialog.showModal();
 			}
 			if (event.target.closest('.add-button')) {
@@ -839,6 +1056,21 @@
 			document.querySelector('#detail-add').textContent = 'Add to bag';
 			productDialog.close();
 			openCart();
+		});
+		document.querySelector('#detail-compare').addEventListener('click', () => {
+			if (selectedProduct) toggleComparison(selectedProduct);
+		});
+		document.querySelector('#compare-products').addEventListener('click', () => {
+			renderComparison();
+			comparisonDialog.showModal();
+		});
+		document.querySelector('[data-close-comparison]').addEventListener('click', () => comparisonDialog.close());
+		document.querySelector('#comparison-content').addEventListener('click', (event) => {
+			const button = event.target.closest('[data-remove-comparison]');
+			if (!button) return;
+			const product = productById.get(button.dataset.removeComparison);
+			if (product) toggleComparison(product);
+			renderComparison();
 		});
 		document.querySelector('#open-cart').addEventListener('click', () => {
 			if (cartDialog.hidden || !cartDialog.classList.contains('is-open')) openCart();
@@ -871,7 +1103,13 @@
 			if (!button) return;
 			const index = cart.findIndex((item) => item.id === button.dataset.id && item.size === button.dataset.size);
 			if (index < 0) return;
-			if (button.dataset.cartAction === 'increase') cart[index].quantity += 1;
+			if (button.dataset.cartAction === 'increase') {
+				if (cart[index].quantity >= maxQuantity) {
+					showToast(`Maximum quantity is ${maxQuantity}`, 'warning');
+					return;
+				}
+				cart[index].quantity += 1;
+			}
 			if (button.dataset.cartAction === 'decrease') cart[index].quantity -= 1;
 			if (button.dataset.cartAction === 'remove' || cart[index].quantity <= 0) cart.splice(index, 1);
 			saveCart();
@@ -902,6 +1140,7 @@
 		renderFavorites();
 		renderCatalog();
 		renderCart();
+		renderComparisonControls();
 	}
 
 	initializeStore();

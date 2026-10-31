@@ -67,7 +67,11 @@ test('serves static storefront files and disables accounts in preview mode', asy
 	const page = await fetch(baseUrl);
 	assert.equal(page.status, 200);
 	assert.match(await page.text(), /<title>Preview<\/title>/);
-	assert.deepEqual(await (await fetch(`${baseUrl}/api/config`)).json(), { accountsEnabled: false });
+	assert.deepEqual(await (await fetch(`${baseUrl}/api/config`)).json(), {
+		accountsEnabled: false,
+		passwordResetEnabled: false,
+		socialProviders: { google: false, apple: false }
+	});
 	assert.equal((await (await fetch(`${baseUrl}/api/paypal/config`)).json()).enabled, false);
 	assert.equal((await fetch(`${baseUrl}/api/account/orders`)).status, 503);
 	const signup = await fetch(`${baseUrl}/api/auth/signup`, {
@@ -163,6 +167,82 @@ test('keeps PayPal checkout disabled until server credentials are configured', a
 		assert.equal(orderResponse.status, 503);
 		assert.match((await orderResponse.json()).error, /not configured/i);
 	});
+});
+
+test('exposes social provider availability only when provider credentials are configured', async (t) => {
+	await withApi(t, async (baseUrl, directory) => {
+		const config = await (await fetch(`${baseUrl}/api/config`)).json();
+		assert.deepEqual(config.socialProviders, { google: true, apple: true });
+
+		const authorization = await fetch(`${baseUrl}/api/auth/google/start`, { redirect: 'manual' });
+		assert.equal(authorization.status, 302);
+		const authorizationUrl = new URL(authorization.headers.get('location'));
+		assert.equal(authorizationUrl.host, 'accounts.google.com');
+		assert.equal(authorizationUrl.searchParams.get('client_id'), 'google-client-id');
+		assert.equal(authorizationUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/google/callback');
+		assert.equal(authorizationUrl.searchParams.get('code_challenge_method'), 'S256');
+
+		const disabledApi = createServer({
+			ordersFile: join(directory, 'disabled-orders.json'),
+			authFile: join(directory, 'disabled-auth.json'),
+			databaseFile: join(directory, 'disabled-accounts.sqlite'),
+			env: {}
+		});
+		await new Promise((resolve, reject) => {
+			disabledApi.once('error', reject);
+			disabledApi.listen(0, '127.0.0.1', resolve);
+		});
+		try {
+			const disabledBaseUrl = `http://127.0.0.1:${disabledApi.address().port}`;
+			const disabledConfig = await (await fetch(`${disabledBaseUrl}/api/config`)).json();
+			assert.deepEqual(disabledConfig.socialProviders, { google: false, apple: false });
+			const unavailable = await fetch(`${disabledBaseUrl}/api/auth/google/start`);
+			assert.equal(unavailable.status, 503);
+			assert.match((await unavailable.json()).error, /google sign-in is not configured/i);
+		} finally {
+			await new Promise((resolve, reject) => disabledApi.close((error) => error ? reject(error) : resolve()));
+		}
+	}, {
+		env: {
+			APP_ORIGIN: 'http://localhost:5173',
+			GOOGLE_CLIENT_ID: 'google-client-id',
+			GOOGLE_CLIENT_SECRET: 'google-client-secret',
+			APPLE_CLIENT_ID: 'com.example.store',
+			APPLE_TEAM_ID: 'TEAM123456',
+			APPLE_KEY_ID: 'KEY1234567',
+			APPLE_PRIVATE_KEY: 'test-private-key'
+		},
+		oauthClient: {
+			discovery: async (issuer, clientId) => ({ issuer, clientId }),
+			ClientSecretPost: () => ({}),
+			randomState: () => 'test-state',
+			randomNonce: () => 'test-nonce',
+			randomPKCECodeVerifier: () => 'test-verifier',
+			calculatePKCECodeChallenge: async () => 'test-challenge',
+			buildAuthorizationUrl: (configuration, parameters) => {
+				const authorizationUrl = new URL('/o/oauth2/v2/auth', configuration.issuer);
+				authorizationUrl.searchParams.set('client_id', configuration.clientId);
+				for (const [key, value] of Object.entries(parameters)) {
+					authorizationUrl.searchParams.set(key, value);
+				}
+				return authorizationUrl;
+			}
+		}
+	});
+});
+
+test('requires configured email delivery before requesting a password reset', async (t) => {
+	await withApi(t, async (baseUrl) => {
+		const config = await (await fetch(`${baseUrl}/api/config`)).json();
+		assert.equal(config.passwordResetEnabled, false);
+		const response = await fetch(`${baseUrl}/api/auth/password-reset/request`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+			body: JSON.stringify({ email: 'customer@example.com' })
+		});
+		assert.equal(response.status, 503);
+		assert.match((await response.json()).error, /email is not configured/i);
+	}, { env: {} });
 });
 
 test('creates accounts with scrypt hashes and manages secure cookie sessions', async (t) => {
@@ -261,6 +341,143 @@ test('rejects duplicate accounts and weak passwords, and does not reveal login a
 		assert.equal(unknown.status, 401);
 		assert.deepEqual(await known.json(), await unknown.json());
 	}, { env: {} });
+});
+
+test('rejects password sign-in for accounts without a local password', async (t) => {
+	await withApi(t, async (baseUrl, directory) => {
+		await writeFile(join(directory, 'auth.json'), JSON.stringify([{
+			id: 'google-user',
+			type: 'user',
+			email: 'google@example.com',
+			emailVerified: true,
+			providerIdentities: [{ provider: 'google', subject: 'google-subject' }],
+			createdAt: new Date().toISOString()
+		}]));
+		const response = await fetch(`${baseUrl}/api/auth/login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+			body: JSON.stringify({ email: 'google@example.com', password: 'StrongPassword!123' })
+		});
+		assert.equal(response.status, 401);
+		assert.match((await response.json()).error, /email or password is incorrect/i);
+	}, { env: {} });
+});
+
+test('resets passwords using single-use tokens and revokes existing sessions', async (t) => {
+	const emails = [];
+	let resolveDelivery;
+	const deliveryCompleted = new Promise((resolve) => { resolveDelivery = resolve; });
+	const password = 'StrongPassword!123';
+	const nextPassword = 'AnotherStrongPass!456';
+	await withApi(t, async (baseUrl, directory) => {
+		const origin = 'http://localhost:5173';
+		const signup = await fetch(`${baseUrl}/api/auth/signup`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email: 'reset@example.com', password })
+		});
+		assert.equal(signup.status, 201);
+		const login = await fetch(`${baseUrl}/api/auth/login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email: 'reset@example.com', password })
+		});
+		assert.equal(login.status, 200);
+		const sessionCookie = login.headers.get('set-cookie').split(';', 1)[0];
+
+		const requestReset = (email) => fetch(`${baseUrl}/api/auth/password-reset/request`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email })
+		});
+		const unknown = await requestReset('unknown@example.com');
+		const known = await requestReset('RESET@example.com');
+		await deliveryCompleted;
+		assert.equal(unknown.status, 200);
+		assert.equal(known.status, 200);
+		assert.deepEqual(await unknown.json(), await known.json());
+		assert.equal(emails.length, 1);
+		assert.equal(emails[0].to, 'reset@example.com');
+		const resetUrl = new URL(emails[0].resetUrl);
+		assert.equal(resetUrl.search, '');
+		const token = new URLSearchParams(resetUrl.hash.slice(1)).get('resetToken');
+		assert.match(token, /^[A-Za-z0-9_-]{43}$/);
+		const stored = await readFile(join(directory, 'auth.json'), 'utf8');
+		assert.equal(stored.includes(token), false);
+
+		const completeReset = (resetToken, newPassword) => fetch(`${baseUrl}/api/auth/password-reset/complete`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ token: resetToken, password: newPassword })
+		});
+		const reset = await completeReset(token, nextPassword);
+		assert.equal(reset.status, 200);
+		assert.match((await reset.json()).message, /reset/i);
+		assert.equal((await completeReset(token, nextPassword)).status, 400);
+		assert.equal((await fetch(`${baseUrl}/api/auth/me`, {
+			headers: { Cookie: sessionCookie }
+		})).status, 401);
+
+		const oldPasswordLogin = await fetch(`${baseUrl}/api/auth/login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email: 'reset@example.com', password })
+		});
+		assert.equal(oldPasswordLogin.status, 401);
+		const newPasswordLogin = await fetch(`${baseUrl}/api/auth/login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email: 'reset@example.com', password: nextPassword })
+		});
+		assert.equal(newPasswordLogin.status, 200);
+	}, {
+		env: {},
+		deliverPasswordResetEmail: async (message) => {
+			emails.push(message);
+			resolveDelivery();
+		}
+	});
+});
+
+test('rejects expired password reset links', async (t) => {
+	let deliveredEmail;
+	let resolveDelivery;
+	const deliveryCompleted = new Promise((resolve) => { resolveDelivery = resolve; });
+	const password = 'StrongPassword!123';
+	await withApi(t, async (baseUrl, directory) => {
+		const origin = 'http://localhost:5173';
+		const signup = await fetch(`${baseUrl}/api/auth/signup`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email: 'expired@example.com', password })
+		});
+		assert.equal(signup.status, 201);
+		const request = await fetch(`${baseUrl}/api/auth/password-reset/request`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ email: 'expired@example.com' })
+		});
+		assert.equal(request.status, 200);
+		await deliveryCompleted;
+		const token = new URLSearchParams(new URL(deliveredEmail.resetUrl).hash.slice(1)).get('resetToken');
+		const records = JSON.parse(await readFile(join(directory, 'auth.json'), 'utf8'));
+		records.find((record) => record.type === 'password_reset').expiresAt = '2000-01-01T00:00:00.000Z';
+		await writeFile(join(directory, 'auth.json'), JSON.stringify(records));
+
+		const reset = await fetch(`${baseUrl}/api/auth/password-reset/complete`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: origin },
+			body: JSON.stringify({ token, password: 'AnotherStrongPass!456' })
+		});
+		assert.equal(reset.status, 400);
+		assert.match((await reset.json()).error, /invalid or has expired/i);
+	}, {
+		env: {},
+		deliverPasswordResetEmail: async (message) => {
+			deliveredEmail = message;
+			resolveDelivery();
+		}
+	});
 });
 
 test('requires a trusted origin for account mutations and rate-limits login attempts', async (t) => {

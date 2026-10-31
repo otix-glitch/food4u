@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { createServer as createHttpServer } from 'node:http';
 import { chmodSync, closeSync, mkdirSync, openSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -6,6 +6,9 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import Database from 'better-sqlite3';
+import { importPKCS8, SignJWT } from 'jose';
+import nodemailer from 'nodemailer';
+import * as oidc from 'openid-client';
 import { products } from './server/catalog.js';
 
 const defaultOrdersFile = resolve(dirname(fileURLToPath(import.meta.url)), 'data', 'orders.json');
@@ -17,6 +20,7 @@ const maxRequestBytes = 16 * 1024;
 const maxQuantity = 99;
 const sessionCookieName = 'dd_session';
 const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
+const passwordResetLifetimeMilliseconds = 15 * 60 * 1000;
 const minimumPasswordLength = 12;
 const scrypt = promisify(scryptCallback);
 
@@ -243,7 +247,7 @@ function getCookie(request, name) {
 	return '';
 }
 
-export function createServer({ ordersFile = defaultOrdersFile, authFile = defaultAuthFile, databaseFile = defaultDatabaseFile, staticDirectory = defaultStaticDirectory, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+export function createServer({ ordersFile = defaultOrdersFile, authFile = defaultAuthFile, databaseFile = defaultDatabaseFile, staticDirectory = defaultStaticDirectory, env = process.env, fetchImpl = globalThis.fetch, deliverPasswordResetEmail, oauthClient = oidc } = {}) {
 	mkdirSync(dirname(databaseFile), { recursive: true });
 	const databaseFileDescriptor = openSync(databaseFile, 'a', 0o600);
 	closeSync(databaseFileDescriptor);
@@ -298,6 +302,33 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 		? 'https://api-m.paypal.com'
 		: 'https://api-m.sandbox.paypal.com';
 	const paypalEnabled = env.APP_MODE !== 'preview' && Boolean(paypalClientId && paypalClientSecret);
+	const smtpHost = env.SMTP_HOST?.trim() ?? '';
+	const smtpFrom = env.SMTP_FROM?.trim() ?? '';
+	const smtpUser = env.SMTP_USER?.trim() ?? '';
+	const smtpPassword = env.SMTP_PASSWORD ?? '';
+	const smtpPort = Number(env.SMTP_PORT || 587);
+	const smtpSecure = env.SMTP_SECURE === 'true' || smtpPort === 465;
+	const smtpConfigured = Boolean(smtpHost && smtpFrom && ((smtpUser && smtpPassword) || (!smtpUser && !smtpPassword)));
+	if ((smtpHost || smtpFrom || smtpUser || smtpPassword) && !smtpConfigured) {
+		throw new Error('Configure SMTP_HOST and SMTP_FROM, and set both SMTP_USER and SMTP_PASSWORD or neither.');
+	}
+	if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) {
+		throw new Error('SMTP_PORT must be an integer between 1 and 65535.');
+	}
+	const smtpTransport = smtpConfigured
+		? nodemailer.createTransport({
+			host: smtpHost,
+			port: smtpPort,
+			secure: smtpSecure,
+			...(smtpUser ? {
+				auth: {
+					user: smtpUser,
+					pass: smtpHost === 'smtp.gmail.com' ? smtpPassword.replace(/\s/g, '') : smtpPassword
+				}
+			} : {})
+		})
+		: null;
+	const passwordResetEnabled = env.APP_MODE !== 'preview' && Boolean(deliverPasswordResetEmail || smtpTransport);
 	const cookieSecure = env.NODE_ENV === 'production' || env.AUTH_COOKIE_SECURE === 'true';
 	let allowedAppOrigin = '';
 	const appOrigin = env.APP_ORIGIN?.trim() || env.RENDER_EXTERNAL_URL?.trim() || '';
@@ -312,7 +343,26 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 	if (env.NODE_ENV === 'production' && !allowedAppOrigin) {
 		throw new Error('APP_ORIGIN must be configured with the production HTTPS website origin.');
 	}
+	const authAppOrigin = allowedAppOrigin || (env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:5173');
+	const googleClientId = env.GOOGLE_CLIENT_ID?.trim() ?? '';
+	const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim() ?? '';
+	const appleClientId = env.APPLE_CLIENT_ID?.trim() ?? '';
+	const appleTeamId = env.APPLE_TEAM_ID?.trim() ?? '';
+	const appleKeyId = env.APPLE_KEY_ID?.trim() ?? '';
+	const applePrivateKey = env.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? '';
+	if (Boolean(googleClientId) !== Boolean(googleClientSecret)) {
+		throw new Error('Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Google sign-in.');
+	}
+	const appleSettings = [appleClientId, appleTeamId, appleKeyId, applePrivateKey];
+	if (appleSettings.some(Boolean) && !appleSettings.every(Boolean)) {
+		throw new Error('Set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY to enable Apple sign-in.');
+	}
+	const socialProviders = {
+		google: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && googleClientId && googleClientSecret),
+		apple: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && appleClientId && appleTeamId && appleKeyId && applePrivateKey)
+	};
 	const authRateLimits = new Map();
+	const oauthTransactions = new Map();
 	let writeQueue = Promise.resolve();
 	let accessToken = '';
 	let accessTokenExpiresAt = 0;
@@ -381,6 +431,91 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			response.setHeader('Retry-After', String(Math.max(1, Math.ceil((state.resetAt - now) / 1000))));
 			throw new ApiError(429, 'Too many sign-in attempts. Please wait and try again.');
 		}
+	}
+
+	async function getOAuthConfiguration(provider) {
+		const isGoogle = provider === 'google';
+		const clientId = isGoogle ? googleClientId : appleClientId;
+		let clientSecret = isGoogle ? googleClientSecret : '';
+		if (!isGoogle) {
+			const now = Math.floor(Date.now() / 1000);
+			const privateKey = await importPKCS8(applePrivateKey, 'ES256');
+			clientSecret = await new SignJWT({})
+				.setProtectedHeader({ alg: 'ES256', kid: appleKeyId })
+				.setIssuer(appleTeamId)
+				.setSubject(appleClientId)
+				.setAudience('https://appleid.apple.com')
+				.setIssuedAt(now)
+				.setExpirationTime(now + 5 * 60)
+				.sign(privateKey);
+		}
+		const issuer = isGoogle ? 'https://accounts.google.com' : 'https://appleid.apple.com';
+		return oauthClient.discovery(
+			new URL(issuer),
+			clientId,
+			{ client_secret: clientSecret },
+			oauthClient.ClientSecretPost(clientSecret)
+		);
+	}
+
+	function redirectToStore(response, parameters = {}) {
+		const destination = new URL('/', authAppOrigin);
+		for (const [key, value] of Object.entries(parameters)) destination.searchParams.set(key, value);
+		response.writeHead(303, {
+			Location: destination.toString(),
+			'Cache-Control': 'no-store',
+			'Referrer-Policy': 'no-referrer'
+		});
+		response.end();
+	}
+
+	function clearOAuthStateCookie(response, provider) {
+		const cookies = response.getHeader('Set-Cookie');
+		const cookieList = Array.isArray(cookies) ? cookies : cookies ? [cookies] : [];
+		const parts = [
+			`dd_oauth_${provider}=`,
+			'Path=/api/auth',
+			'HttpOnly',
+			'SameSite=Lax',
+			'Max-Age=0'
+		];
+		if (cookieSecure) parts.push('Secure');
+		response.setHeader('Set-Cookie', [...cookieList, parts.join('; ')]);
+	}
+
+	async function findOrCreateOAuthUser(provider, claims) {
+		const subject = typeof claims.sub === 'string' ? claims.sub : '';
+		const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : '';
+		const verified = claims.email_verified === true || claims.email_verified === 'true';
+		if (!subject || !verified || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+			throw new ApiError(403, 'The identity provider did not return a verified email address.');
+		}
+		return mutateUsers(async (records) => {
+			const linked = records.find((record) => record.type === 'user'
+				&& record.providerIdentities?.some((identity) =>
+					identity.provider === provider && identity.subject === subject));
+			if (linked) return { value: linked };
+
+			const user = records.find((record) => record.type === 'user' && record.email === email);
+			const identity = { provider, subject };
+			if (user) {
+				user.providerIdentities = [...(user.providerIdentities ?? []), identity];
+				user.emailVerified = true;
+				return { changed: true, value: user };
+			}
+
+			const created = {
+				id: randomUUID(),
+				type: 'user',
+				email,
+				emailVerified: true,
+				providerIdentities: [identity],
+				createdAt: new Date().toISOString()
+			};
+			records.push(created);
+			ensureAccountData(created.id);
+			return { changed: true, value: created };
+		});
 	}
 
 	async function issueSession(user, response) {
@@ -572,15 +707,251 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				return;
 			}
 			if (request.method === 'GET' && url.pathname === '/api/config') {
-				sendJson(response, 200, { accountsEnabled: env.APP_MODE !== 'preview' });
+				sendJson(response, 200, {
+					accountsEnabled: env.APP_MODE !== 'preview',
+					passwordResetEnabled,
+					socialProviders
+				});
 				return;
 			}
 			if (env.APP_MODE === 'preview' && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/account/'))) {
 				throw new ApiError(503, 'Accounts are disabled for this public preview.');
 			}
+			const oauthStartMatch = url.pathname.match(/^\/api\/auth\/(google|apple)\/start$/);
+			if (request.method === 'GET' && oauthStartMatch) {
+				const provider = oauthStartMatch[1];
+				if (!socialProviders[provider]) throw new ApiError(503, `${provider} sign-in is not configured.`);
+				enforceAuthRateLimit(request, response);
+				const state = oauthClient.randomState();
+				const nonce = oauthClient.randomNonce();
+				const codeVerifier = oauthClient.randomPKCECodeVerifier();
+				const codeChallenge = await oauthClient.calculatePKCECodeChallenge(codeVerifier);
+				const now = Date.now();
+				for (const [savedState, transaction] of oauthTransactions) {
+					if (transaction.createdAt < now - 10 * 60 * 1000) oauthTransactions.delete(savedState);
+				}
+				oauthTransactions.set(state, { provider, nonce, codeVerifier, createdAt: now });
+				let authorizationUrl;
+				try {
+					const configuration = await getOAuthConfiguration(provider);
+					const redirectUri = new URL(`/api/auth/${provider}/callback`, authAppOrigin).toString();
+					authorizationUrl = oauthClient.buildAuthorizationUrl(configuration, {
+						redirect_uri: redirectUri,
+						response_type: 'code',
+						response_mode: 'query',
+						scope: 'openid email',
+						state,
+						nonce,
+						code_challenge: codeChallenge,
+						code_challenge_method: 'S256',
+						prompt: 'select_account'
+					});
+				} catch (error) {
+					oauthTransactions.delete(state);
+					console.error('Could not initialize OAuth sign-in:', { provider, code: error.code });
+					redirectToStore(response, { authError: 'oauth_failed' });
+					return;
+				}
+				const cookieParts = [
+					`dd_oauth_${provider}=${state}`,
+					'Path=/api/auth',
+					'HttpOnly',
+					'SameSite=Lax',
+					'Max-Age=600'
+				];
+				if (cookieSecure) cookieParts.push('Secure');
+				response.writeHead(302, {
+					Location: authorizationUrl.toString(),
+					'Set-Cookie': cookieParts.join('; '),
+					'Cache-Control': 'no-store',
+					'Referrer-Policy': 'no-referrer'
+				});
+				response.end();
+				return;
+			}
+			const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/(google|apple)\/callback$/);
+			if (request.method === 'GET' && oauthCallbackMatch) {
+				const provider = oauthCallbackMatch[1];
+				const state = url.searchParams.get('state') ?? '';
+				const cookieState = getCookie(request, `dd_oauth_${provider}`);
+				const transaction = oauthTransactions.get(state);
+				const statesMatch = state.length === cookieState.length
+					&& state.length > 0
+					&& timingSafeEqual(Buffer.from(state), Buffer.from(cookieState));
+				if (!statesMatch || !transaction || transaction.provider !== provider) {
+					clearOAuthStateCookie(response, provider);
+					redirectToStore(response, { authError: 'oauth_failed' });
+					return;
+				}
+				oauthTransactions.delete(state);
+				if (url.searchParams.has('error')) {
+					clearOAuthStateCookie(response, provider);
+					redirectToStore(response, { authError: 'oauth_cancelled' });
+					return;
+				}
+				try {
+					const configuration = await getOAuthConfiguration(provider);
+					const redirectUri = new URL(`/api/auth/${provider}/callback`, authAppOrigin).toString();
+					const tokens = await oauthClient.authorizationCodeGrant(
+						configuration,
+						new URL(request.url, authAppOrigin),
+						{
+							expectedState: state,
+							expectedNonce: transaction.nonce,
+							pkceCodeVerifier: transaction.codeVerifier,
+							idTokenExpected: true
+						},
+						{ redirect_uri: redirectUri }
+					);
+					const claims = tokens.claims();
+					const user = await findOrCreateOAuthUser(provider, claims);
+					await issueSession(user, response);
+					clearOAuthStateCookie(response, provider);
+					redirectToStore(response, { auth: provider });
+				} catch (error) {
+					console.error('OAuth sign-in failed:', { provider, code: error.code, status: error.status });
+					clearOAuthStateCookie(response, provider);
+					redirectToStore(response, {
+						authError: error instanceof ApiError && error.status === 403
+							? 'unverified_email'
+							: 'oauth_failed'
+					});
+				}
+				return;
+			}
 			if (request.method === 'GET' && url.pathname === '/api/auth/me') {
 				const { user } = await getAuthenticatedUser(request);
 				sendJson(response, 200, { user: publicUser(user) });
+				return;
+			}
+			if (request.method === 'POST' && url.pathname === '/api/auth/password-reset/request') {
+				validateSameOrigin(request);
+				enforceAuthRateLimit(request, response);
+				if (!passwordResetEnabled) throw new ApiError(503, 'Password reset email is not configured. Please contact the shop.');
+				const payload = await readJson(request);
+				if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+					throw new ApiError(400, 'A valid email address is required.');
+				}
+				const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
+				if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+					throw new ApiError(400, 'Enter a valid email address.');
+				}
+
+				const now = Date.now();
+				const user = await mutateUsers(async (records) => ({
+					value: records.find((record) => record.type === 'user' && record.email === email) ?? null
+				}));
+				if (user) {
+					const token = randomBytes(32).toString('base64url');
+					const tokenHash = createHash('sha256').update(token).digest('hex');
+					const expiresAt = new Date(now + passwordResetLifetimeMilliseconds).toISOString();
+					const resetRecord = {
+						id: randomUUID(),
+						type: 'password_reset',
+						userId: user.id,
+						tokenHash,
+						createdAt: new Date(now).toISOString(),
+						expiresAt
+					};
+					await mutateUsers(async (records) => {
+						for (let index = records.length - 1; index >= 0; index -= 1) {
+							const record = records[index];
+							if (record.type === 'password_reset'
+								&& (record.userId === user.id || record.expiresAt <= new Date(now).toISOString())) {
+								records.splice(index, 1);
+							}
+						}
+						records.push(resetRecord);
+						return { changed: true };
+					});
+					const origin = allowedAppOrigin || new URL(request.headers.origin).origin;
+					const resetUrl = new URL('/', origin);
+					resetUrl.hash = new URLSearchParams({ resetToken: token }).toString();
+					sendJson(response, 200, {
+						message: 'If that email belongs to an account, you may receive a password reset link shortly.'
+					});
+					setImmediate(() => {
+						void (async () => {
+							try {
+								if (deliverPasswordResetEmail) {
+									await deliverPasswordResetEmail({
+										to: user.email,
+										resetUrl: resetUrl.toString(),
+										expiresAt
+									});
+								} else {
+									await smtpTransport.sendMail({
+										from: smtpFrom,
+										to: user.email,
+										subject: 'Reset your Drip District password',
+										text: `Use this link to reset your Drip District password. It expires in 15 minutes and can only be used once:\n\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`
+									});
+								}
+							} catch (error) {
+								try {
+									await mutateUsers(async (records) => {
+										const index = records.findIndex((record) =>
+											record.type === 'password_reset' && record.id === resetRecord.id);
+										if (index < 0) return { value: null };
+										records.splice(index, 1);
+										return { changed: true };
+									});
+								} catch (error) {
+									console.error('Could not revoke an undelivered password reset token:', error);
+								}
+								console.error('Could not deliver a password reset email:', {
+									code: error.code,
+									command: error.command,
+									responseCode: error.responseCode
+								});
+							}
+						})();
+					});
+					return;
+				}
+				sendJson(response, 200, {
+					message: 'If that email belongs to an account, you may receive a password reset link shortly.'
+				});
+				return;
+			}
+			if (request.method === 'POST' && url.pathname === '/api/auth/password-reset/complete') {
+				validateSameOrigin(request);
+				enforceAuthRateLimit(request, response);
+				const payload = await readJson(request);
+				if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+					throw new ApiError(400, 'A reset token and new password are required.');
+				}
+				const token = typeof payload.token === 'string' ? payload.token : '';
+				const password = typeof payload.password === 'string' ? payload.password : '';
+				if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+					throw new ApiError(400, 'This password reset link is invalid or has expired.');
+				}
+				if (password.length < minimumPasswordLength || password.length > 128
+					|| Buffer.byteLength(password, 'utf8') > 512) {
+					throw new ApiError(400, `Password must be between ${minimumPasswordLength} and 128 characters.`);
+				}
+				const tokenHash = createHash('sha256').update(token).digest('hex');
+				const now = new Date().toISOString();
+				const updated = await mutateUsers(async (records) => {
+					const reset = records.find((record) =>
+						record.type === 'password_reset'
+						&& record.tokenHash === tokenHash
+						&& record.expiresAt > now);
+					if (!reset) return { value: false };
+					const user = records.find((record) => record.type === 'user' && record.id === reset.userId);
+					if (!user) return { value: false };
+					const salt = randomBytes(16);
+					user.passwordSalt = salt.toString('hex');
+					user.passwordHash = (await scrypt(password, salt, 64)).toString('hex');
+					for (let index = records.length - 1; index >= 0; index -= 1) {
+						const record = records[index];
+						if (record.type === 'session' && record.userId === user.id) records.splice(index, 1);
+						if (record.type === 'password_reset' && record.userId === user.id) records.splice(index, 1);
+					}
+					return { changed: true, value: true };
+				});
+				if (!updated) throw new ApiError(400, 'This password reset link is invalid or has expired.');
+				sendJson(response, 200, { message: 'Your password has been reset. Please sign in with your new password.' });
 				return;
 			}
 			if (request.method === 'POST' && url.pathname === '/api/auth/signup') {
@@ -637,12 +1008,13 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				const user = await mutateUsers(async (records) => ({
 					value: records.find((record) => record.type === 'user' && record.email === email) ?? null
 				}));
-				const salt = user ? Buffer.from(user.passwordSalt, 'hex') : Buffer.alloc(16);
-				const expectedHash = user ? Buffer.from(user.passwordHash, 'hex') : Buffer.alloc(64);
+				const hasPassword = Boolean(user?.passwordSalt && user.passwordHash);
+				const salt = hasPassword ? Buffer.from(user.passwordSalt, 'hex') : Buffer.alloc(16);
+				const expectedHash = hasPassword ? Buffer.from(user.passwordHash, 'hex') : Buffer.alloc(64);
 				const suppliedHash = Buffer.from(await scrypt(password, salt, 64));
 				const passwordMatches = expectedHash.length === suppliedHash.length
 					&& timingSafeEqual(expectedHash, suppliedHash);
-				if (!user || !passwordMatches) throw new ApiError(401, 'Email or password is incorrect.');
+				if (!user || !hasPassword || !passwordMatches) throw new ApiError(401, 'Email or password is incorrect.');
 				await issueSession(user, response);
 				sendJson(response, 200, { user: publicUser(user) });
 				return;

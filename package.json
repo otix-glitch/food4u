@@ -17,6 +17,9 @@
 		"vite": "^7.0.0"
 	},
 	"dependencies": {
-		"better-sqlite3": "^13.0.3"
+		"better-sqlite3": "^13.0.3",
+		"jose": "^6.2.14",
+		"nodemailer": "^10.3.1",
+		"openid-client": "^6.8.8"
 	}
 }
