@@ -6,7 +6,6 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import Database from 'better-sqlite3';
-import { importPKCS8, SignJWT } from 'jose';
 import nodemailer from 'nodemailer';
 import * as oidc from 'openid-client';
 import { products } from './server/catalog.js';
@@ -346,20 +345,21 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 	const authAppOrigin = allowedAppOrigin || (env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:5173');
 	const googleClientId = env.GOOGLE_CLIENT_ID?.trim() ?? '';
 	const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim() ?? '';
-	const appleClientId = env.APPLE_CLIENT_ID?.trim() ?? '';
-	const appleTeamId = env.APPLE_TEAM_ID?.trim() ?? '';
-	const appleKeyId = env.APPLE_KEY_ID?.trim() ?? '';
-	const applePrivateKey = env.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? '';
+	const microsoftClientId = env.MICROSOFT_CLIENT_ID?.trim() ?? '';
+	const microsoftClientSecret = env.MICROSOFT_CLIENT_SECRET?.trim() ?? '';
+	const microsoftTenantId = env.MICROSOFT_TENANT_ID?.trim() || 'common';
 	if (Boolean(googleClientId) !== Boolean(googleClientSecret)) {
 		throw new Error('Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Google sign-in.');
 	}
-	const appleSettings = [appleClientId, appleTeamId, appleKeyId, applePrivateKey];
-	if (appleSettings.some(Boolean) && !appleSettings.every(Boolean)) {
-		throw new Error('Set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY to enable Apple sign-in.');
+	if (Boolean(microsoftClientId) !== Boolean(microsoftClientSecret)) {
+		throw new Error('Set both MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to enable Microsoft sign-in.');
+	}
+	if (!/^(common|organizations|consumers|[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.test(microsoftTenantId)) {
+		throw new Error('MICROSOFT_TENANT_ID must be common, organizations, consumers, or a tenant GUID.');
 	}
 	const socialProviders = {
 		google: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && googleClientId && googleClientSecret),
-		apple: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && appleClientId && appleTeamId && appleKeyId && applePrivateKey)
+		microsoft: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && microsoftClientId && microsoftClientSecret)
 	};
 	const authRateLimits = new Map();
 	const oauthTransactions = new Map();
@@ -435,21 +435,11 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 
 	async function getOAuthConfiguration(provider) {
 		const isGoogle = provider === 'google';
-		const clientId = isGoogle ? googleClientId : appleClientId;
-		let clientSecret = isGoogle ? googleClientSecret : '';
-		if (!isGoogle) {
-			const now = Math.floor(Date.now() / 1000);
-			const privateKey = await importPKCS8(applePrivateKey, 'ES256');
-			clientSecret = await new SignJWT({})
-				.setProtectedHeader({ alg: 'ES256', kid: appleKeyId })
-				.setIssuer(appleTeamId)
-				.setSubject(appleClientId)
-				.setAudience('https://appleid.apple.com')
-				.setIssuedAt(now)
-				.setExpirationTime(now + 5 * 60)
-				.sign(privateKey);
-		}
-		const issuer = isGoogle ? 'https://accounts.google.com' : 'https://appleid.apple.com';
+		const clientId = isGoogle ? googleClientId : microsoftClientId;
+		const clientSecret = isGoogle ? googleClientSecret : microsoftClientSecret;
+		const issuer = isGoogle
+			? 'https://accounts.google.com'
+			: `https://login.microsoftonline.com/${microsoftTenantId}/v2.0`;
 		return oauthClient.discovery(
 			new URL(issuer),
 			clientId,
@@ -485,9 +475,16 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 
 	async function findOrCreateOAuthUser(provider, claims) {
 		const subject = typeof claims.sub === 'string' ? claims.sub : '';
-		const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : '';
+		const isMicrosoft = provider === 'microsoft';
+		const emailClaim = typeof claims.email === 'string'
+			? claims.email
+			: isMicrosoft && typeof claims.preferred_username === 'string'
+				? claims.preferred_username
+				: '';
+		const email = emailClaim.trim().toLowerCase();
 		const verified = claims.email_verified === true || claims.email_verified === 'true';
-		if (!subject || !verified || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+		const validEmail = email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+		if (!subject || (!isMicrosoft && (!verified || !validEmail))) {
 			throw new ApiError(403, 'The identity provider did not return a verified email address.');
 		}
 		return mutateUsers(async (records) => {
@@ -496,9 +493,15 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 					identity.provider === provider && identity.subject === subject));
 			if (linked) return { value: linked };
 
+			if (!validEmail) {
+				throw new ApiError(403, 'The identity provider did not return an email address we can use.');
+			}
 			const user = records.find((record) => record.type === 'user' && record.email === email);
 			const identity = { provider, subject };
 			if (user) {
+				if (isMicrosoft && !verified) {
+					throw new ApiError(409, 'This email already belongs to an account. Sign in using that account first.');
+				}
 				user.providerIdentities = [...(user.providerIdentities ?? []), identity];
 				user.emailVerified = true;
 				return { changed: true, value: user };
@@ -508,7 +511,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				id: randomUUID(),
 				type: 'user',
 				email,
-				emailVerified: true,
+				emailVerified: verified,
 				providerIdentities: [identity],
 				createdAt: new Date().toISOString()
 			};
@@ -717,7 +720,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			if (env.APP_MODE === 'preview' && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/account/'))) {
 				throw new ApiError(503, 'Accounts are disabled for this public preview.');
 			}
-			const oauthStartMatch = url.pathname.match(/^\/api\/auth\/(google|apple)\/start$/);
+			const oauthStartMatch = url.pathname.match(/^\/api\/auth\/(google|microsoft)\/start$/);
 			if (request.method === 'GET' && oauthStartMatch) {
 				const provider = oauthStartMatch[1];
 				if (!socialProviders[provider]) throw new ApiError(503, `${provider} sign-in is not configured.`);
@@ -739,7 +742,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 						redirect_uri: redirectUri,
 						response_type: 'code',
 						response_mode: 'query',
-						scope: 'openid email',
+						scope: provider === 'microsoft' ? 'openid email profile' : 'openid email',
 						state,
 						nonce,
 						code_challenge: codeChallenge,
@@ -769,7 +772,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				response.end();
 				return;
 			}
-			const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/(google|apple)\/callback$/);
+			const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/(google|microsoft)\/callback$/);
 			if (request.method === 'GET' && oauthCallbackMatch) {
 				const provider = oauthCallbackMatch[1];
 				const state = url.searchParams.get('state') ?? '';
@@ -812,9 +815,11 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 					console.error('OAuth sign-in failed:', { provider, code: error.code, status: error.status });
 					clearOAuthStateCookie(response, provider);
 					redirectToStore(response, {
-						authError: error instanceof ApiError && error.status === 403
-							? 'unverified_email'
-							: 'oauth_failed'
+						authError: error instanceof ApiError && error.status === 409
+							? 'email_conflict'
+							: error instanceof ApiError && error.status === 403
+								? 'unverified_email'
+								: 'oauth_failed'
 					});
 				}
 				return;
@@ -841,7 +846,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				const user = await mutateUsers(async (records) => ({
 					value: records.find((record) => record.type === 'user' && record.email === email) ?? null
 				}));
-				if (user) {
+				if (user && (user.emailVerified === true || user.passwordHash)) {
 					const token = randomBytes(32).toString('base64url');
 					const tokenHash = createHash('sha256').update(token).digest('hex');
 					const expiresAt = new Date(now + passwordResetLifetimeMilliseconds).toISOString();

@@ -203,7 +203,8 @@ async function loadCurrentUser() {
 	if (returnProvider) {
 		mode = 'sign_in';
 		renderAuth();
-		showMessage(authMessage, `You are signed in with ${returnProvider === 'apple' ? 'Apple' : 'Google'}.`);
+		const providerName = returnProvider === 'microsoft' ? 'Microsoft' : 'Google';
+		showMessage(authMessage, `You are signed in with ${providerName}.`);
 		authDialog.showModal();
 	} else if (returnError) {
 		mode = 'sign_in';
@@ -211,6 +212,7 @@ async function loadCurrentUser() {
 		const messages = {
 			oauth_cancelled: 'Sign-in was cancelled.',
 			unverified_email: 'The provider did not return a verified email address.',
+			email_conflict: 'This email belongs to an existing account. Sign in with that account first.',
 			oauth_failed: 'Could not complete sign-in. Please try again.'
 		};
 		showMessage(authMessage, messages[returnError] ?? messages.oauth_failed, true);

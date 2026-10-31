@@ -70,7 +70,7 @@ test('serves static storefront files and disables accounts in preview mode', asy
 	assert.deepEqual(await (await fetch(`${baseUrl}/api/config`)).json(), {
 		accountsEnabled: false,
 		passwordResetEnabled: false,
-		socialProviders: { google: false, apple: false }
+		socialProviders: { google: false, microsoft: false }
 	});
 	assert.equal((await (await fetch(`${baseUrl}/api/paypal/config`)).json()).enabled, false);
 	assert.equal((await fetch(`${baseUrl}/api/account/orders`)).status, 503);
@@ -172,7 +172,7 @@ test('keeps PayPal checkout disabled until server credentials are configured', a
 test('exposes social provider availability only when provider credentials are configured', async (t) => {
 	await withApi(t, async (baseUrl, directory) => {
 		const config = await (await fetch(`${baseUrl}/api/config`)).json();
-		assert.deepEqual(config.socialProviders, { google: true, apple: true });
+		assert.deepEqual(config.socialProviders, { google: true, microsoft: true });
 
 		const authorization = await fetch(`${baseUrl}/api/auth/google/start`, { redirect: 'manual' });
 		assert.equal(authorization.status, 302);
@@ -181,6 +181,15 @@ test('exposes social provider availability only when provider credentials are co
 		assert.equal(authorizationUrl.searchParams.get('client_id'), 'google-client-id');
 		assert.equal(authorizationUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/google/callback');
 		assert.equal(authorizationUrl.searchParams.get('code_challenge_method'), 'S256');
+
+		const microsoftAuthorization = await fetch(`${baseUrl}/api/auth/microsoft/start`, { redirect: 'manual' });
+		assert.equal(microsoftAuthorization.status, 302);
+		const microsoftUrl = new URL(microsoftAuthorization.headers.get('location'));
+		assert.equal(microsoftUrl.host, 'login.microsoftonline.com');
+		assert.equal(microsoftUrl.searchParams.get('client_id'), 'microsoft-client-id');
+		assert.equal(microsoftUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/microsoft/callback');
+		assert.match(microsoftUrl.searchParams.get('scope'), /openid email profile/);
+		assert.equal(microsoftUrl.searchParams.get('code_challenge_method'), 'S256');
 
 		const disabledApi = createServer({
 			ordersFile: join(directory, 'disabled-orders.json'),
@@ -195,10 +204,13 @@ test('exposes social provider availability only when provider credentials are co
 		try {
 			const disabledBaseUrl = `http://127.0.0.1:${disabledApi.address().port}`;
 			const disabledConfig = await (await fetch(`${disabledBaseUrl}/api/config`)).json();
-			assert.deepEqual(disabledConfig.socialProviders, { google: false, apple: false });
+			assert.deepEqual(disabledConfig.socialProviders, { google: false, microsoft: false });
 			const unavailable = await fetch(`${disabledBaseUrl}/api/auth/google/start`);
 			assert.equal(unavailable.status, 503);
 			assert.match((await unavailable.json()).error, /google sign-in is not configured/i);
+			const unavailableMicrosoft = await fetch(`${disabledBaseUrl}/api/auth/microsoft/start`);
+			assert.equal(unavailableMicrosoft.status, 503);
+			assert.match((await unavailableMicrosoft.json()).error, /microsoft sign-in is not configured/i);
 		} finally {
 			await new Promise((resolve, reject) => disabledApi.close((error) => error ? reject(error) : resolve()));
 		}
@@ -207,10 +219,8 @@ test('exposes social provider availability only when provider credentials are co
 			APP_ORIGIN: 'http://localhost:5173',
 			GOOGLE_CLIENT_ID: 'google-client-id',
 			GOOGLE_CLIENT_SECRET: 'google-client-secret',
-			APPLE_CLIENT_ID: 'com.example.store',
-			APPLE_TEAM_ID: 'TEAM123456',
-			APPLE_KEY_ID: 'KEY1234567',
-			APPLE_PRIVATE_KEY: 'test-private-key'
+			MICROSOFT_CLIENT_ID: 'microsoft-client-id',
+			MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret'
 		},
 		oauthClient: {
 			discovery: async (issuer, clientId) => ({ issuer, clientId }),
@@ -227,6 +237,118 @@ test('exposes social provider availability only when provider credentials are co
 				}
 				return authorizationUrl;
 			}
+		}
+	});
+});
+
+test('Microsoft sign-in does not auto-link an unverified email to an existing account', async (t) => {
+	await withApi(t, async (baseUrl, directory) => {
+		const signup = await fetch(`${baseUrl}/api/auth/signup`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: 'https://store.example.com' },
+			body: JSON.stringify({ email: 'shopper@example.com', password: 'StrongPassword!123' })
+		});
+		assert.equal(signup.status, 201);
+
+		const authorization = await fetch(`${baseUrl}/api/auth/microsoft/start`, { redirect: 'manual' });
+		assert.equal(authorization.status, 302);
+		const callback = await fetch(`${baseUrl}/api/auth/microsoft/callback?code=test-code&state=test-state`, {
+			redirect: 'manual',
+			headers: { Cookie: 'dd_oauth_microsoft=test-state' }
+		});
+		assert.equal(callback.status, 303);
+		assert.equal(new URL(callback.headers.get('location')).searchParams.get('authError'), 'email_conflict');
+
+		const users = JSON.parse(await readFile(join(directory, 'auth.json'), 'utf8'));
+		const user = users.find((record) => record.type === 'user' && record.email === 'shopper@example.com');
+		assert.ok(user.passwordHash);
+		assert.equal(user.providerIdentities, undefined);
+	}, {
+		env: {
+			APP_ORIGIN: 'https://store.example.com',
+			MICROSOFT_CLIENT_ID: 'microsoft-client-id',
+			MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret'
+		},
+		oauthClient: {
+			discovery: async (issuer, clientId) => ({ issuer, clientId }),
+			ClientSecretPost: () => ({}),
+			randomState: () => 'test-state',
+			randomNonce: () => 'test-nonce',
+			randomPKCECodeVerifier: () => 'test-verifier',
+			calculatePKCECodeChallenge: async () => 'test-challenge',
+			buildAuthorizationUrl: (configuration, parameters) => {
+				const authorizationUrl = new URL('/authorize', configuration.issuer);
+				authorizationUrl.searchParams.set('client_id', configuration.clientId);
+				for (const [key, value] of Object.entries(parameters)) {
+					authorizationUrl.searchParams.set(key, value);
+				}
+				return authorizationUrl;
+			},
+			authorizationCodeGrant: async () => ({
+				claims: () => ({
+					sub: 'microsoft-subject',
+					preferred_username: 'shopper@example.com'
+				})
+			})
+		}
+	});
+});
+
+test('Microsoft sign-in creates an unverified identity without enabling password reset', async (t) => {
+	let resetEmailSent = false;
+	await withApi(t, async (baseUrl, directory) => {
+		const authorization = await fetch(`${baseUrl}/api/auth/microsoft/start`, { redirect: 'manual' });
+		assert.equal(authorization.status, 302);
+		const callback = await fetch(`${baseUrl}/api/auth/microsoft/callback?code=test-code&state=test-state`, {
+			redirect: 'manual',
+			headers: { Cookie: 'dd_oauth_microsoft=test-state' }
+		});
+		assert.equal(callback.status, 303);
+		assert.equal(new URL(callback.headers.get('location')).searchParams.get('auth'), 'microsoft');
+		const cookies = callback.headers.get('set-cookie');
+		assert.match(cookies, /dd_session=/);
+
+		const users = JSON.parse(await readFile(join(directory, 'auth.json'), 'utf8'));
+		const user = users.find((record) => record.type === 'user' && record.email === 'microsoft@example.com');
+		assert.equal(user.emailVerified, false);
+		assert.deepEqual(user.providerIdentities, [{ provider: 'microsoft', subject: 'microsoft-subject' }]);
+
+		const reset = await fetch(`${baseUrl}/api/auth/password-reset/request`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: 'https://store.example.com' },
+			body: JSON.stringify({ email: 'microsoft@example.com' })
+		});
+		assert.equal(reset.status, 200);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.equal(resetEmailSent, false);
+	}, {
+		env: {
+			APP_ORIGIN: 'https://store.example.com',
+			MICROSOFT_CLIENT_ID: 'microsoft-client-id',
+			MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret'
+		},
+		deliverPasswordResetEmail: async () => { resetEmailSent = true; },
+		oauthClient: {
+			discovery: async (issuer, clientId) => ({ issuer, clientId }),
+			ClientSecretPost: () => ({}),
+			randomState: () => 'test-state',
+			randomNonce: () => 'test-nonce',
+			randomPKCECodeVerifier: () => 'test-verifier',
+			calculatePKCECodeChallenge: async () => 'test-challenge',
+			buildAuthorizationUrl: (configuration, parameters) => {
+				const authorizationUrl = new URL('/authorize', configuration.issuer);
+				authorizationUrl.searchParams.set('client_id', configuration.clientId);
+				for (const [key, value] of Object.entries(parameters)) {
+					authorizationUrl.searchParams.set(key, value);
+				}
+				return authorizationUrl;
+			},
+			authorizationCodeGrant: async () => ({
+				claims: () => ({
+					sub: 'microsoft-subject',
+					preferred_username: 'microsoft@example.com'
+				})
+			})
 		}
 	});
 });

@@ -49,13 +49,13 @@ SMTP_FROM=Drip District <support@example.com>
 
 Keep SMTP credentials private and configure them as deployment secrets in production. Delivery failures are logged by the API, and undelivered reset tokens are revoked.
 
-### Google and Apple sign-in
+### Google and Microsoft sign-in
 
 Email/password sign-in remains available. To enable Google, create a Google OAuth **Web application** client and configure its authorized redirect URI as `${APP_ORIGIN}/api/auth/google/callback`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
-To enable Apple, create a Sign in with Apple Services ID, enable it for your primary App ID, and register the storefront domain and return URL `${APP_ORIGIN}/api/auth/apple/callback`. Set `APPLE_CLIENT_ID` to the Services ID, plus `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and the contents of the Apple `.p8` key in `APPLE_PRIVATE_KEY`. For `.env`, represent newlines in the private key as `\n`. The server signs short-lived client assertions; the private key stays on the server.
+To enable Microsoft, register an application in the Microsoft Entra admin center. Choose the supported account types you want, add a **Web** redirect URI `${APP_ORIGIN}/api/auth/microsoft/callback`, and create a client secret. Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`. `MICROSOFT_TENANT_ID` defaults to `common` for work/school and personal Microsoft accounts; it can also be `organizations`, `consumers`, or a tenant GUID. Keep the client secret on the server.
 
-Set `APP_ORIGIN` to the exact storefront origin used by customers and register callback URLs with the same scheme, host, and port. Local development defaults to `http://127.0.0.1:5173`; configure matching local redirect URLs in providers that allow them. OAuth uses authorization code flow with PKCE, state, and nonce checks. Provider email must be verified; a verified address is linked to an existing account with the same email. Provider settings are optional, and their buttons appear only when configured. Keep all provider secrets in ignored `.env` locally and deployment secrets in production. OAuth transaction state is held in the API process, so run one API instance unless that state is moved to shared storage.
+Set `APP_ORIGIN` to the exact storefront origin used by customers and register callback URLs with the same scheme, host, and port. Local development defaults to `http://127.0.0.1:5173`; configure matching local redirect URLs in providers that allow them. OAuth uses authorization code flow with PKCE, state, and nonce checks. Google requires a verified email. Microsoft may not assert that its email claim is verified, so new accounts can sign in with that identity but are not automatically linked to an existing account by an unverified email. Provider settings are optional, and their buttons appear only when configured. Keep all provider secrets in ignored `.env` locally and deployment secrets in production. OAuth transaction state is held in the API process, so run one API instance unless that state is moved to shared storage.
 
 ### Configure PayPal sandbox payments
 
@@ -82,7 +82,7 @@ Available API endpoints:
 - `POST /api/auth/signup` — creates an account with a salted password hash.
 - `POST /api/auth/login` — checks credentials and sets a server-managed session cookie.
 - `GET /api/auth/google/start` and `GET /api/auth/google/callback` — Google OpenID Connect sign-in.
-- `GET /api/auth/apple/start` and `GET /api/auth/apple/callback` — Apple OpenID Connect sign-in.
+- `GET /api/auth/microsoft/start` and `GET /api/auth/microsoft/callback` — Microsoft OpenID Connect sign-in.
 - `POST /api/auth/password-reset/request` — sends a single-use reset link when the email belongs to an account.
 - `POST /api/auth/password-reset/complete` — changes the password using a valid reset token and revokes existing sessions.
 - `GET /api/auth/me` — returns the profile for the current session.
