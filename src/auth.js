@@ -203,7 +203,7 @@ async function loadCurrentUser() {
 	if (returnProvider) {
 		mode = 'sign_in';
 		renderAuth();
-		const providerName = returnProvider === 'microsoft' ? 'Microsoft' : 'Google';
+		const providerName = returnProvider === 'github' ? 'GitHub' : 'Google';
 		showMessage(authMessage, `You are signed in with ${providerName}.`);
 		authDialog.showModal();
 	} else if (returnError) {

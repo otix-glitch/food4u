@@ -39,6 +39,24 @@ function jsonResponse(body, status = 200) {
 	});
 }
 
+function makeGitHubFetch(emails = [{ email: 'github@example.com', primary: true, verified: true }]) {
+	const requests = [];
+	const fetchImpl = async (url, options = {}) => {
+		requests.push({ url, options });
+		if (url === 'https://github.com/login/oauth/access_token') {
+			return jsonResponse({ access_token: 'github-access-token' });
+		}
+		if (url === 'https://api.github.com/user') {
+			return jsonResponse({ id: 12345 });
+		}
+		if (url === 'https://api.github.com/user/emails') {
+			return jsonResponse(emails);
+		}
+		throw new Error(`Unexpected GitHub request: ${url}`);
+	};
+	return { fetchImpl, requests };
+}
+
 test('serves static storefront files and disables accounts in preview mode', async (t) => {
 	const directory = await mkdtemp(join(tmpdir(), 'dripdistrict-preview-'));
 	const staticDirectory = join(directory, 'static');
@@ -70,7 +88,7 @@ test('serves static storefront files and disables accounts in preview mode', asy
 	assert.deepEqual(await (await fetch(`${baseUrl}/api/config`)).json(), {
 		accountsEnabled: false,
 		passwordResetEnabled: false,
-		socialProviders: { google: false, microsoft: false }
+		socialProviders: { google: false, github: false }
 	});
 	assert.equal((await (await fetch(`${baseUrl}/api/paypal/config`)).json()).enabled, false);
 	assert.equal((await fetch(`${baseUrl}/api/account/orders`)).status, 503);
@@ -172,7 +190,7 @@ test('keeps PayPal checkout disabled until server credentials are configured', a
 test('exposes social provider availability only when provider credentials are configured', async (t) => {
 	await withApi(t, async (baseUrl, directory) => {
 		const config = await (await fetch(`${baseUrl}/api/config`)).json();
-		assert.deepEqual(config.socialProviders, { google: true, microsoft: true });
+		assert.deepEqual(config.socialProviders, { google: true, github: true });
 
 		const authorization = await fetch(`${baseUrl}/api/auth/google/start`, { redirect: 'manual' });
 		assert.equal(authorization.status, 302);
@@ -182,14 +200,15 @@ test('exposes social provider availability only when provider credentials are co
 		assert.equal(authorizationUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/google/callback');
 		assert.equal(authorizationUrl.searchParams.get('code_challenge_method'), 'S256');
 
-		const microsoftAuthorization = await fetch(`${baseUrl}/api/auth/microsoft/start`, { redirect: 'manual' });
-		assert.equal(microsoftAuthorization.status, 302);
-		const microsoftUrl = new URL(microsoftAuthorization.headers.get('location'));
-		assert.equal(microsoftUrl.host, 'login.microsoftonline.com');
-		assert.equal(microsoftUrl.searchParams.get('client_id'), 'microsoft-client-id');
-		assert.equal(microsoftUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/microsoft/callback');
-		assert.match(microsoftUrl.searchParams.get('scope'), /openid email profile/);
-		assert.equal(microsoftUrl.searchParams.get('code_challenge_method'), 'S256');
+		const githubAuthorization = await fetch(`${baseUrl}/api/auth/github/start`, { redirect: 'manual' });
+		assert.equal(githubAuthorization.status, 302);
+		const githubUrl = new URL(githubAuthorization.headers.get('location'));
+		assert.equal(githubUrl.host, 'github.com');
+		assert.equal(githubUrl.pathname, '/login/oauth/authorize');
+		assert.equal(githubUrl.searchParams.get('client_id'), 'github-client-id');
+		assert.equal(githubUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/github/callback');
+		assert.equal(githubUrl.searchParams.get('scope'), 'read:user user:email');
+		assert.equal(githubUrl.searchParams.get('state'), 'test-state');
 
 		const disabledApi = createServer({
 			ordersFile: join(directory, 'disabled-orders.json'),
@@ -204,13 +223,13 @@ test('exposes social provider availability only when provider credentials are co
 		try {
 			const disabledBaseUrl = `http://127.0.0.1:${disabledApi.address().port}`;
 			const disabledConfig = await (await fetch(`${disabledBaseUrl}/api/config`)).json();
-			assert.deepEqual(disabledConfig.socialProviders, { google: false, microsoft: false });
+			assert.deepEqual(disabledConfig.socialProviders, { google: false, github: false });
 			const unavailable = await fetch(`${disabledBaseUrl}/api/auth/google/start`);
 			assert.equal(unavailable.status, 503);
 			assert.match((await unavailable.json()).error, /google sign-in is not configured/i);
-			const unavailableMicrosoft = await fetch(`${disabledBaseUrl}/api/auth/microsoft/start`);
-			assert.equal(unavailableMicrosoft.status, 503);
-			assert.match((await unavailableMicrosoft.json()).error, /microsoft sign-in is not configured/i);
+			const unavailableGitHub = await fetch(`${disabledBaseUrl}/api/auth/github/start`);
+			assert.equal(unavailableGitHub.status, 503);
+			assert.match((await unavailableGitHub.json()).error, /github sign-in is not configured/i);
 		} finally {
 			await new Promise((resolve, reject) => disabledApi.close((error) => error ? reject(error) : resolve()));
 		}
@@ -219,8 +238,8 @@ test('exposes social provider availability only when provider credentials are co
 			APP_ORIGIN: 'http://localhost:5173',
 			GOOGLE_CLIENT_ID: 'google-client-id',
 			GOOGLE_CLIENT_SECRET: 'google-client-secret',
-			MICROSOFT_CLIENT_ID: 'microsoft-client-id',
-			MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret'
+			GITHUB_CLIENT_ID: 'github-client-id',
+			GITHUB_CLIENT_SECRET: 'github-client-secret'
 		},
 		oauthClient: {
 			discovery: async (issuer, clientId) => ({ issuer, clientId }),
@@ -241,114 +260,115 @@ test('exposes social provider availability only when provider credentials are co
 	});
 });
 
-test('Microsoft sign-in does not auto-link an unverified email to an existing account', async (t) => {
+test('GitHub sign-in links verified primary emails to existing accounts', async (t) => {
+	const github = makeGitHubFetch([
+		{ email: 'github@example.com', primary: true, verified: true },
+		{ email: 'other@example.com', primary: false, verified: true }
+	]);
 	await withApi(t, async (baseUrl, directory) => {
 		const signup = await fetch(`${baseUrl}/api/auth/signup`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Origin: 'https://store.example.com' },
-			body: JSON.stringify({ email: 'shopper@example.com', password: 'StrongPassword!123' })
+			body: JSON.stringify({ email: 'github@example.com', password: 'StrongPassword!123' })
 		});
 		assert.equal(signup.status, 201);
 
-		const authorization = await fetch(`${baseUrl}/api/auth/microsoft/start`, { redirect: 'manual' });
+		const authorization = await fetch(`${baseUrl}/api/auth/github/start`, { redirect: 'manual' });
 		assert.equal(authorization.status, 302);
-		const callback = await fetch(`${baseUrl}/api/auth/microsoft/callback?code=test-code&state=test-state`, {
+		const callback = await fetch(`${baseUrl}/api/auth/github/callback?code=test-code&state=test-state`, {
 			redirect: 'manual',
-			headers: { Cookie: 'dd_oauth_microsoft=test-state' }
+			headers: { Cookie: 'dd_oauth_github=test-state' }
 		});
 		assert.equal(callback.status, 303);
-		assert.equal(new URL(callback.headers.get('location')).searchParams.get('authError'), 'email_conflict');
+		assert.equal(new URL(callback.headers.get('location')).searchParams.get('auth'), 'github');
+		assert.match(callback.headers.get('set-cookie'), /dd_session=/);
 
 		const users = JSON.parse(await readFile(join(directory, 'auth.json'), 'utf8'));
-		const user = users.find((record) => record.type === 'user' && record.email === 'shopper@example.com');
+		const user = users.find((record) => record.type === 'user' && record.email === 'github@example.com');
 		assert.ok(user.passwordHash);
-		assert.equal(user.providerIdentities, undefined);
+		assert.equal(user.emailVerified, true);
+		assert.deepEqual(user.providerIdentities, [{ provider: 'github', subject: '12345' }]);
+		assert.equal(github.requests.length, 3);
+		assert.equal(github.requests[0].options.method, 'POST');
+		assert.match(github.requests[0].options.body.toString(), /client_secret=github-client-secret/);
+		assert.equal(github.requests[1].options.headers.Authorization, 'Bearer github-access-token');
 	}, {
 		env: {
 			APP_ORIGIN: 'https://store.example.com',
-			MICROSOFT_CLIENT_ID: 'microsoft-client-id',
-			MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret'
+			GITHUB_CLIENT_ID: 'github-client-id',
+			GITHUB_CLIENT_SECRET: 'github-client-secret'
 		},
+		fetchImpl: github.fetchImpl,
 		oauthClient: {
-			discovery: async (issuer, clientId) => ({ issuer, clientId }),
-			ClientSecretPost: () => ({}),
-			randomState: () => 'test-state',
-			randomNonce: () => 'test-nonce',
-			randomPKCECodeVerifier: () => 'test-verifier',
-			calculatePKCECodeChallenge: async () => 'test-challenge',
-			buildAuthorizationUrl: (configuration, parameters) => {
-				const authorizationUrl = new URL('/authorize', configuration.issuer);
-				authorizationUrl.searchParams.set('client_id', configuration.clientId);
-				for (const [key, value] of Object.entries(parameters)) {
-					authorizationUrl.searchParams.set(key, value);
-				}
-				return authorizationUrl;
-			},
-			authorizationCodeGrant: async () => ({
-				claims: () => ({
-					sub: 'microsoft-subject',
-					preferred_username: 'shopper@example.com'
-				})
-			})
+			randomState: () => 'test-state'
 		}
 	});
 });
 
-test('Microsoft sign-in creates an unverified identity without enabling password reset', async (t) => {
-	let resetEmailSent = false;
+test('GitHub sign-in requires a verified email', async (t) => {
+	const github = makeGitHubFetch([{ email: 'github@example.com', primary: true, verified: false }]);
 	await withApi(t, async (baseUrl, directory) => {
-		const authorization = await fetch(`${baseUrl}/api/auth/microsoft/start`, { redirect: 'manual' });
+		const authorization = await fetch(`${baseUrl}/api/auth/github/start`, { redirect: 'manual' });
 		assert.equal(authorization.status, 302);
-		const callback = await fetch(`${baseUrl}/api/auth/microsoft/callback?code=test-code&state=test-state`, {
+		const callback = await fetch(`${baseUrl}/api/auth/github/callback?code=test-code&state=test-state`, {
 			redirect: 'manual',
-			headers: { Cookie: 'dd_oauth_microsoft=test-state' }
+			headers: { Cookie: 'dd_oauth_github=test-state' }
 		});
 		assert.equal(callback.status, 303);
-		assert.equal(new URL(callback.headers.get('location')).searchParams.get('auth'), 'microsoft');
+		assert.equal(new URL(callback.headers.get('location')).searchParams.get('authError'), 'unverified_email');
+		await assert.rejects(readFile(join(directory, 'auth.json'), 'utf8'), { code: 'ENOENT' });
+	}, {
+		env: {
+			APP_ORIGIN: 'https://store.example.com',
+			GITHUB_CLIENT_ID: 'github-client-id',
+			GITHUB_CLIENT_SECRET: 'github-client-secret'
+		},
+		fetchImpl: github.fetchImpl,
+		oauthClient: {
+			randomState: () => 'test-state'
+		}
+	});
+});
+
+test('verified GitHub accounts can request password reset email', async (t) => {
+	let resetEmailSent = false;
+	const github = makeGitHubFetch();
+	await withApi(t, async (baseUrl, directory) => {
+		const authorization = await fetch(`${baseUrl}/api/auth/github/start`, { redirect: 'manual' });
+		assert.equal(authorization.status, 302);
+		const callback = await fetch(`${baseUrl}/api/auth/github/callback?code=test-code&state=test-state`, {
+			redirect: 'manual',
+			headers: { Cookie: 'dd_oauth_github=test-state' }
+		});
+		assert.equal(callback.status, 303);
+		assert.equal(new URL(callback.headers.get('location')).searchParams.get('auth'), 'github');
 		const cookies = callback.headers.get('set-cookie');
 		assert.match(cookies, /dd_session=/);
 
 		const users = JSON.parse(await readFile(join(directory, 'auth.json'), 'utf8'));
-		const user = users.find((record) => record.type === 'user' && record.email === 'microsoft@example.com');
-		assert.equal(user.emailVerified, false);
-		assert.deepEqual(user.providerIdentities, [{ provider: 'microsoft', subject: 'microsoft-subject' }]);
+		const user = users.find((record) => record.type === 'user' && record.email === 'github@example.com');
+		assert.equal(user.emailVerified, true);
+		assert.equal(user.passwordHash, undefined);
+		assert.deepEqual(user.providerIdentities, [{ provider: 'github', subject: '12345' }]);
 
 		const reset = await fetch(`${baseUrl}/api/auth/password-reset/request`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Origin: 'https://store.example.com' },
-			body: JSON.stringify({ email: 'microsoft@example.com' })
+			body: JSON.stringify({ email: 'github@example.com' })
 		});
 		assert.equal(reset.status, 200);
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		assert.equal(resetEmailSent, false);
+		assert.equal(resetEmailSent, true);
 	}, {
 		env: {
 			APP_ORIGIN: 'https://store.example.com',
-			MICROSOFT_CLIENT_ID: 'microsoft-client-id',
-			MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret'
+			GITHUB_CLIENT_ID: 'github-client-id',
+			GITHUB_CLIENT_SECRET: 'github-client-secret'
 		},
+		fetchImpl: github.fetchImpl,
 		deliverPasswordResetEmail: async () => { resetEmailSent = true; },
 		oauthClient: {
-			discovery: async (issuer, clientId) => ({ issuer, clientId }),
-			ClientSecretPost: () => ({}),
 			randomState: () => 'test-state',
-			randomNonce: () => 'test-nonce',
-			randomPKCECodeVerifier: () => 'test-verifier',
-			calculatePKCECodeChallenge: async () => 'test-challenge',
-			buildAuthorizationUrl: (configuration, parameters) => {
-				const authorizationUrl = new URL('/authorize', configuration.issuer);
-				authorizationUrl.searchParams.set('client_id', configuration.clientId);
-				for (const [key, value] of Object.entries(parameters)) {
-					authorizationUrl.searchParams.set(key, value);
-				}
-				return authorizationUrl;
-			},
-			authorizationCodeGrant: async () => ({
-				claims: () => ({
-					sub: 'microsoft-subject',
-					preferred_username: 'microsoft@example.com'
-				})
-			})
 		}
 	});
 });

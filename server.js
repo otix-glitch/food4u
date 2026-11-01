@@ -345,21 +345,17 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 	const authAppOrigin = allowedAppOrigin || (env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:5173');
 	const googleClientId = env.GOOGLE_CLIENT_ID?.trim() ?? '';
 	const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim() ?? '';
-	const microsoftClientId = env.MICROSOFT_CLIENT_ID?.trim() ?? '';
-	const microsoftClientSecret = env.MICROSOFT_CLIENT_SECRET?.trim() ?? '';
-	const microsoftTenantId = env.MICROSOFT_TENANT_ID?.trim() || 'common';
+	const githubClientId = env.GITHUB_CLIENT_ID?.trim() ?? '';
+	const githubClientSecret = env.GITHUB_CLIENT_SECRET?.trim() ?? '';
 	if (Boolean(googleClientId) !== Boolean(googleClientSecret)) {
 		throw new Error('Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Google sign-in.');
 	}
-	if (Boolean(microsoftClientId) !== Boolean(microsoftClientSecret)) {
-		throw new Error('Set both MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to enable Microsoft sign-in.');
-	}
-	if (!/^(common|organizations|consumers|[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.test(microsoftTenantId)) {
-		throw new Error('MICROSOFT_TENANT_ID must be common, organizations, consumers, or a tenant GUID.');
+	if (Boolean(githubClientId) !== Boolean(githubClientSecret)) {
+		throw new Error('Set both GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to enable GitHub sign-in.');
 	}
 	const socialProviders = {
 		google: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && googleClientId && googleClientSecret),
-		microsoft: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && microsoftClientId && microsoftClientSecret)
+		github: env.APP_MODE !== 'preview' && Boolean(authAppOrigin && githubClientId && githubClientSecret)
 	};
 	const authRateLimits = new Map();
 	const oauthTransactions = new Map();
@@ -433,19 +429,59 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 		}
 	}
 
-	async function getOAuthConfiguration(provider) {
-		const isGoogle = provider === 'google';
-		const clientId = isGoogle ? googleClientId : microsoftClientId;
-		const clientSecret = isGoogle ? googleClientSecret : microsoftClientSecret;
-		const issuer = isGoogle
-			? 'https://accounts.google.com'
-			: `https://login.microsoftonline.com/${microsoftTenantId}/v2.0`;
+	async function getGoogleOAuthConfiguration() {
 		return oauthClient.discovery(
-			new URL(issuer),
-			clientId,
-			{ client_secret: clientSecret },
-			oauthClient.ClientSecretPost(clientSecret)
+			new URL('https://accounts.google.com'),
+			googleClientId,
+			{ client_secret: googleClientSecret },
+			oauthClient.ClientSecretPost(googleClientSecret)
 		);
+	}
+
+	async function getGitHubOAuthIdentity(code, redirectUri) {
+		const tokenResponse = await fetchImpl('https://github.com/login/oauth/access_token', {
+			method: 'POST',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			body: new URLSearchParams({
+				client_id: githubClientId,
+				client_secret: githubClientSecret,
+				code,
+				redirect_uri: redirectUri
+			})
+		});
+		if (!tokenResponse.ok) throw new Error(`GitHub token exchange failed with status ${tokenResponse.status}.`);
+		const tokenResult = await tokenResponse.json();
+		if (typeof tokenResult.access_token !== 'string' || !tokenResult.access_token) {
+			throw new Error('GitHub did not return an access token.');
+		}
+
+		const headers = {
+			Accept: 'application/vnd.github+json',
+			Authorization: `Bearer ${tokenResult.access_token}`,
+			'User-Agent': 'Drip-District',
+			'X-GitHub-Api-Version': '2022-11-28'
+		};
+		const userResponse = await fetchImpl('https://api.github.com/user', { headers });
+		if (!userResponse.ok) throw new Error(`GitHub profile request failed with status ${userResponse.status}.`);
+		const githubUser = await userResponse.json();
+		const subject = typeof githubUser.id === 'number' || typeof githubUser.id === 'string'
+			? String(githubUser.id)
+			: '';
+		if (!subject) throw new Error('GitHub did not return a valid user ID.');
+
+		const emailResponse = await fetchImpl('https://api.github.com/user/emails', { headers });
+		if (!emailResponse.ok) throw new Error(`GitHub email request failed with status ${emailResponse.status}.`);
+		const emails = await emailResponse.json();
+		if (!Array.isArray(emails)) throw new Error('GitHub returned an invalid email list.');
+		const email = emails.find((entry) => entry?.primary === true && entry?.verified === true)
+			?? emails.find((entry) => entry?.verified === true);
+		if (typeof email?.email !== 'string') {
+			throw new ApiError(403, 'GitHub must provide a verified email address to sign in.');
+		}
+		return { sub: subject, email: email.email, email_verified: true };
 	}
 
 	function redirectToStore(response, parameters = {}) {
@@ -475,16 +511,11 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 
 	async function findOrCreateOAuthUser(provider, claims) {
 		const subject = typeof claims.sub === 'string' ? claims.sub : '';
-		const isMicrosoft = provider === 'microsoft';
-		const emailClaim = typeof claims.email === 'string'
-			? claims.email
-			: isMicrosoft && typeof claims.preferred_username === 'string'
-				? claims.preferred_username
-				: '';
+		const emailClaim = typeof claims.email === 'string' ? claims.email : '';
 		const email = emailClaim.trim().toLowerCase();
 		const verified = claims.email_verified === true || claims.email_verified === 'true';
 		const validEmail = email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-		if (!subject || (!isMicrosoft && (!verified || !validEmail))) {
+		if (!subject || !verified || !validEmail) {
 			throw new ApiError(403, 'The identity provider did not return a verified email address.');
 		}
 		return mutateUsers(async (records) => {
@@ -499,9 +530,6 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			const user = records.find((record) => record.type === 'user' && record.email === email);
 			const identity = { provider, subject };
 			if (user) {
-				if (isMicrosoft && !verified) {
-					throw new ApiError(409, 'This email already belongs to an account. Sign in using that account first.');
-				}
 				user.providerIdentities = [...(user.providerIdentities ?? []), identity];
 				user.emailVerified = true;
 				return { changed: true, value: user };
@@ -720,15 +748,17 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			if (env.APP_MODE === 'preview' && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/account/'))) {
 				throw new ApiError(503, 'Accounts are disabled for this public preview.');
 			}
-			const oauthStartMatch = url.pathname.match(/^\/api\/auth\/(google|microsoft)\/start$/);
+			const oauthStartMatch = url.pathname.match(/^\/api\/auth\/(google|github)\/start$/);
 			if (request.method === 'GET' && oauthStartMatch) {
 				const provider = oauthStartMatch[1];
 				if (!socialProviders[provider]) throw new ApiError(503, `${provider} sign-in is not configured.`);
 				enforceAuthRateLimit(request, response);
 				const state = oauthClient.randomState();
-				const nonce = oauthClient.randomNonce();
-				const codeVerifier = oauthClient.randomPKCECodeVerifier();
-				const codeChallenge = await oauthClient.calculatePKCECodeChallenge(codeVerifier);
+				const nonce = provider === 'google' ? oauthClient.randomNonce() : '';
+				const codeVerifier = provider === 'google' ? oauthClient.randomPKCECodeVerifier() : '';
+				const codeChallenge = provider === 'google'
+					? await oauthClient.calculatePKCECodeChallenge(codeVerifier)
+					: '';
 				const now = Date.now();
 				for (const [savedState, transaction] of oauthTransactions) {
 					if (transaction.createdAt < now - 10 * 60 * 1000) oauthTransactions.delete(savedState);
@@ -736,19 +766,29 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				oauthTransactions.set(state, { provider, nonce, codeVerifier, createdAt: now });
 				let authorizationUrl;
 				try {
-					const configuration = await getOAuthConfiguration(provider);
 					const redirectUri = new URL(`/api/auth/${provider}/callback`, authAppOrigin).toString();
-					authorizationUrl = oauthClient.buildAuthorizationUrl(configuration, {
-						redirect_uri: redirectUri,
-						response_type: 'code',
-						response_mode: 'query',
-						scope: provider === 'microsoft' ? 'openid email profile' : 'openid email',
-						state,
-						nonce,
-						code_challenge: codeChallenge,
-						code_challenge_method: 'S256',
-						prompt: 'select_account'
-					});
+					if (provider === 'github') {
+						authorizationUrl = new URL('https://github.com/login/oauth/authorize');
+						authorizationUrl.search = new URLSearchParams({
+							client_id: githubClientId,
+							redirect_uri: redirectUri,
+							scope: 'read:user user:email',
+							state
+						}).toString();
+					} else {
+						const configuration = await getGoogleOAuthConfiguration();
+						authorizationUrl = oauthClient.buildAuthorizationUrl(configuration, {
+							redirect_uri: redirectUri,
+							response_type: 'code',
+							response_mode: 'query',
+							scope: 'openid email',
+							state,
+							nonce,
+							code_challenge: codeChallenge,
+							code_challenge_method: 'S256',
+							prompt: 'select_account'
+						});
+					}
 				} catch (error) {
 					oauthTransactions.delete(state);
 					console.error('Could not initialize OAuth sign-in:', { provider, code: error.code });
@@ -772,7 +812,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				response.end();
 				return;
 			}
-			const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/(google|microsoft)\/callback$/);
+			const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/(google|github)\/callback$/);
 			if (request.method === 'GET' && oauthCallbackMatch) {
 				const provider = oauthCallbackMatch[1];
 				const state = url.searchParams.get('state') ?? '';
@@ -793,20 +833,27 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 					return;
 				}
 				try {
-					const configuration = await getOAuthConfiguration(provider);
 					const redirectUri = new URL(`/api/auth/${provider}/callback`, authAppOrigin).toString();
-					const tokens = await oauthClient.authorizationCodeGrant(
-						configuration,
-						new URL(request.url, authAppOrigin),
-						{
-							expectedState: state,
-							expectedNonce: transaction.nonce,
-							pkceCodeVerifier: transaction.codeVerifier,
-							idTokenExpected: true
-						},
-						{ redirect_uri: redirectUri }
-					);
-					const claims = tokens.claims();
+					let claims;
+					if (provider === 'github') {
+						const code = url.searchParams.get('code') ?? '';
+						if (!code) throw new ApiError(400, 'GitHub did not return an authorization code.');
+						claims = await getGitHubOAuthIdentity(code, redirectUri);
+					} else {
+						const configuration = await getGoogleOAuthConfiguration();
+						const tokens = await oauthClient.authorizationCodeGrant(
+							configuration,
+							new URL(request.url, authAppOrigin),
+							{
+								expectedState: state,
+								expectedNonce: transaction.nonce,
+								pkceCodeVerifier: transaction.codeVerifier,
+								idTokenExpected: true
+							},
+							{ redirect_uri: redirectUri }
+						);
+						claims = tokens.claims();
+					}
 					const user = await findOrCreateOAuthUser(provider, claims);
 					await issueSession(user, response);
 					clearOAuthStateCookie(response, provider);

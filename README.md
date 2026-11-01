@@ -1,6 +1,6 @@
 # Drip District
 
-A responsive streetwear storefront built with HTML, CSS, and vanilla JavaScript. Its Node.js backend serves the product catalog and provides self-hosted email/password accounts. The storefront includes search, category filters, sorting, saved products, and a cart with size selection.
+A responsive streetwear storefront built with HTML, CSS, and vanilla JavaScript. Its Node.js backend serves the product catalog and provides self-hosted email/password accounts. The storefront includes search, category filters, sorting, saved products, product comparison, a size-selecting cart, and Google and GitHub sign-in. The Drip District logo is also used as the site favicon.
 
 ## Run locally
 
@@ -12,6 +12,8 @@ Install the project dependencies:
 npm install
 ```
 
+For local account or OAuth configuration, copy `.env.example` to `.env` and add credentials there. Never commit `.env`; it can contain private provider and payment secrets.
+
 Start the backend and storefront in separate terminals from the project directory:
 
 ```sh
@@ -21,6 +23,26 @@ npm run api
 ```sh
 npm run dev
 ```
+
+The development server listens on all network interfaces. To use the app on a
+phone or another device on the same Wi-Fi, find this computer's IPv4 address
+with `ipconfig` and open `http://<computer-ip>:5173` on that device. Keep both
+servers running, and allow Node.js through Windows Firewall on private networks
+if prompted. Guest Wi-Fi or router client isolation may prevent devices from
+reaching each other.
+
+This makes the storefront available on the local network; it does not make
+OAuth callbacks work on other devices. The app builds OAuth callback URLs from
+`APP_ORIGIN`, and `localhost` or `127.0.0.1` always refers to the device using
+the browser. For OAuth on multiple devices, use one public HTTPS origin (for
+example, a stable custom-domain tunnel or an account-enabled deployment), set
+`APP_ORIGIN` to that exact origin, and register the matching callback URL with
+each provider. A temporary tunnel URL must be updated in `.env` and the OAuth
+provider settings if it changes.
+
+The Render Blueprint below is a public preview, not an account-enabled
+deployment: it disables customer accounts and PayPal checkout. It cannot be
+used for OAuth sign-in without changing the deployment configuration.
 
 ## Deploy a public preview
 
@@ -49,13 +71,13 @@ SMTP_FROM=Drip District <support@example.com>
 
 Keep SMTP credentials private and configure them as deployment secrets in production. Delivery failures are logged by the API, and undelivered reset tokens are revoked.
 
-### Google and Microsoft sign-in
+### Google and GitHub sign-in
 
 Email/password sign-in remains available. To enable Google, create a Google OAuth **Web application** client and configure its authorized redirect URI as `${APP_ORIGIN}/api/auth/google/callback`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
-To enable Microsoft, register an application in the Microsoft Entra admin center. Choose the supported account types you want, add a **Web** redirect URI `${APP_ORIGIN}/api/auth/microsoft/callback`, and create a client secret. Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`. `MICROSOFT_TENANT_ID` defaults to `common` for work/school and personal Microsoft accounts; it can also be `organizations`, `consumers`, or a tenant GUID. Keep the client secret on the server.
+To enable GitHub, create an OAuth App in GitHub **Settings → Developer settings → OAuth Apps**. Set its homepage URL to your storefront and its callback URL to `${APP_ORIGIN}/api/auth/github/callback`, then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. GitHub sign-in requests the `user:email` scope and uses a verified email returned by GitHub; keep the client secret on the server.
 
-Set `APP_ORIGIN` to the exact storefront origin used by customers and register callback URLs with the same scheme, host, and port. Local development defaults to `http://127.0.0.1:5173`; configure matching local redirect URLs in providers that allow them. OAuth uses authorization code flow with PKCE, state, and nonce checks. Google requires a verified email. Microsoft may not assert that its email claim is verified, so new accounts can sign in with that identity but are not automatically linked to an existing account by an unverified email. Provider settings are optional, and their buttons appear only when configured. Keep all provider secrets in ignored `.env` locally and deployment secrets in production. OAuth transaction state is held in the API process, so run one API instance unless that state is moved to shared storage.
+Set `APP_ORIGIN` to the exact storefront origin used by customers and register callback URLs with the same scheme, host, and port. Local development defaults to `http://127.0.0.1:5173`; configure the matching callback URL in each provider. Google uses authorization code flow with PKCE, state, and nonce checks. GitHub uses authorization code flow with state validation. Provider settings are optional, and their buttons appear only when configured. Keep all provider secrets in ignored `.env` locally and deployment secrets in production. OAuth transaction state is held in the API process, so run one API instance unless that state is moved to shared storage.
 
 ### Configure PayPal sandbox payments
 
@@ -82,7 +104,7 @@ Available API endpoints:
 - `POST /api/auth/signup` — creates an account with a salted password hash.
 - `POST /api/auth/login` — checks credentials and sets a server-managed session cookie.
 - `GET /api/auth/google/start` and `GET /api/auth/google/callback` — Google OpenID Connect sign-in.
-- `GET /api/auth/microsoft/start` and `GET /api/auth/microsoft/callback` — Microsoft OpenID Connect sign-in.
+- `GET /api/auth/github/start` and `GET /api/auth/github/callback` — GitHub OAuth sign-in.
 - `POST /api/auth/password-reset/request` — sends a single-use reset link when the email belongs to an account.
 - `POST /api/auth/password-reset/complete` — changes the password using a valid reset token and revokes existing sessions.
 - `GET /api/auth/me` — returns the profile for the current session.
@@ -106,6 +128,7 @@ The build output is written to `dist/`.
 ## Images
 
 Product photos are stored in `public/assets/products/` and included in the repository.
+The Drip District logo at `public/favicon.jpg` is used as the browser favicon.
 
 ![Streetwear T-shirt](public/assets/products/photo-1521572163474-6864f9cf17ab.jpg)
 
