@@ -1,6 +1,8 @@
-# Drip District
+# Food 4 U
 
-A responsive streetwear storefront built with HTML, CSS, and vanilla JavaScript. Its Node.js backend serves the product catalog and provides self-hosted email/password accounts. The storefront includes search, category filters, sorting, saved products, product comparison, a size-selecting cart, and Google and GitHub sign-in. The Drip District logo is also used as the site favicon.
+A responsive food delivery demo called Food 4 U, built with HTML, CSS, and vanilla JavaScript. Its Node.js backend serves a locally photographed menu and provides self-hosted email/password accounts. The app includes dish search, category filters, sorting, saved favorites, an order basket, demo checkout, and Google and GitHub sign-in.
+
+The app also includes demo-only features: sample dish ratings, recently viewed items, a local dark-mode preference, the `DEMO10` sample discount, a sample profile and order history, and a simulated checkout. Demo orders are stored in the browser only; checkout does not collect payment or create a real order.
 
 ## Run locally
 
@@ -66,7 +68,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-smtp-user
 SMTP_PASSWORD=your-smtp-password
-SMTP_FROM=Drip District <support@example.com>
+SMTP_FROM=Food 4 U <support@example.com>
 ```
 
 Keep SMTP credentials private and configure them as deployment secrets in production. Delivery failures are logged by the API, and undelivered reset tokens are revoked.
@@ -127,14 +129,14 @@ The build output is written to `dist/`.
 
 ## Images
 
-Product photos are stored in `public/assets/products/` and included in the repository.
-The Drip District logo at `public/favicon.jpg` is used as the browser favicon.
+Menu photography is stored locally in `public/assets/food/`. The sample menu uses 14 dishes with distinct photos; replace the demo menu, descriptions, and images with the restaurant's actual offerings before accepting customer orders. The older `public/assets/products/` clothing photos are not used by the food menu.
+The Food 4 U brand image at `public/food-4-u-favicon.jpg` is used as the browser favicon.
 
-![Streetwear T-shirt](public/assets/products/photo-1521572163474-6864f9cf17ab.jpg)
+![Cheeseburger from the Food 4 U menu](public/assets/food/burger-classic.jpg)
 
-![Streetwear denim](public/assets/products/photo-1542272604-787c3835535d.jpg)
+![Pizza from the Food 4 U menu](public/assets/food/pizza-margherita.jpg)
 
-![Streetwear cap](public/assets/products/photo-1521369909029-2afed882baee.jpg)
+![Ramen from the Food 4 U menu](public/assets/food/noodles-ramen.jpg)
 
 ## Tests
 

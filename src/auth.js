@@ -3,6 +3,11 @@ const authForm = document.querySelector('#auth-form');
 const passwordResetRequestForm = document.querySelector('#password-reset-request-form');
 const passwordResetForm = document.querySelector('#password-reset-form');
 const authTrigger = document.querySelector('#auth-trigger');
+const authTriggerLabel = document.querySelector('#auth-trigger-label');
+const authAvatar = document.querySelector('#auth-avatar');
+const authAvatarPlaceholder = document.querySelector('#auth-avatar-placeholder');
+const demoAccountDialog = document.querySelector('#demo-account-dialog');
+const demoOrderList = document.querySelector('#demo-order-list');
 const authMessage = document.querySelector('#auth-message');
 const authSubmit = document.querySelector('#auth-submit');
 const authModeToggle = document.querySelector('#auth-mode-toggle');
@@ -84,7 +89,7 @@ async function loadAccountOrders(user) {
 			summary.textContent = `${dateText} · ${order.status} · ${order.currency} ${amount.toFixed(2)}`;
 			const details = document.createElement('p');
 			details.textContent = Array.isArray(order.items)
-				? order.items.map((entry) => `${entry.name} (${entry.size}) × ${entry.quantity}`).join(', ')
+				? order.items.map((entry) => `${entry.name} × ${entry.quantity}`).join(', ')
 				: 'Order details unavailable.';
 			item.append(summary, details);
 			orderList.append(item);
@@ -129,8 +134,22 @@ async function authRequest(path, { method = 'GET', body } = {}) {
 function renderAuth() {
 	const isSignedIn = Boolean(currentUser);
 	const isAccountMode = mode === 'sign_in' || mode === 'sign_up';
-	authTrigger.textContent = isSignedIn ? 'Account' : 'Sign in';
+	authTriggerLabel.textContent = isSignedIn ? 'Account' : 'Sign in';
 	authTrigger.setAttribute('aria-label', isSignedIn ? `Account for ${currentUser.email}` : 'Sign in to your account');
+	authAvatar.hidden = true;
+	authAvatarPlaceholder.hidden = false;
+	if (isSignedIn && typeof currentUser.avatarUrl === 'string') {
+		try {
+			const avatarUrl = new URL(currentUser.avatarUrl);
+			if (avatarUrl.protocol === 'https:') {
+				authAvatar.src = avatarUrl.href;
+				authAvatar.hidden = false;
+				authAvatarPlaceholder.hidden = true;
+			}
+		} catch {
+			// Accounts without a valid profile image use the default avatar.
+		}
+	}
 	authForm.hidden = isSignedIn || !isAccountMode;
 	passwordResetRequestForm.hidden = isSignedIn || mode !== 'forgot';
 	passwordResetForm.hidden = isSignedIn || mode !== 'reset';
@@ -158,6 +177,60 @@ function renderAuth() {
 	authPassword.autocomplete = mode === 'sign_up' ? 'new-password' : 'current-password';
 	authWarning.hidden = isSignedIn || !isAccountMode;
 }
+
+function renderDemoOrders() {
+	let savedOrders = [];
+	try {
+		const parsed = JSON.parse(localStorage.getItem('drip-district-demo-orders') ?? '[]');
+		if (Array.isArray(parsed)) {
+			savedOrders = parsed.filter((order) => order && typeof order.id === 'string'
+				&& typeof order.createdAt === 'string' && Number.isFinite(Number(order.total)));
+		}
+	} catch {
+		console.warn('Could not read the sample order history from local storage.');
+	}
+	const orders = savedOrders.length ? savedOrders : [{
+		id: 'DD-DEMO-2048',
+		createdAt: '2026-10-12T12:00:00.000Z',
+		total: 16,
+		items: [{ name: 'Miso Ramen Bowl', size: 'M', quantity: 1 }]
+	}];
+	demoOrderList.replaceChildren();
+	for (const order of orders.slice(0, 5)) {
+		const item = document.createElement('li');
+		const date = new Date(order.createdAt);
+		const dateLabel = Number.isNaN(date.valueOf()) ? 'Sample date' : date.toLocaleDateString();
+		const dishes = Array.isArray(order.items)
+			? order.items.map((entry) => `${entry.name} × ${entry.quantity}`).join(', ')
+			: 'Sample dishes';
+		item.textContent = `${dateLabel} · ${order.id} · $${Number(order.total).toFixed(2)} · ${dishes}`;
+		demoOrderList.append(item);
+	}
+}
+
+authAvatar.addEventListener('error', () => {
+	authAvatar.hidden = true;
+	authAvatarPlaceholder.hidden = false;
+});
+
+function openDemoProfile() {
+	if (authDialog.open) authDialog.close();
+	renderDemoOrders();
+	demoAccountDialog.showModal();
+}
+
+document.querySelector('#demo-profile-button').addEventListener('click', openDemoProfile);
+document.querySelector('#demo-profile-trigger')?.addEventListener('click', openDemoProfile);
+document.querySelector('[data-close-demo-account]').addEventListener('click', () => demoAccountDialog.close());
+demoAccountDialog.addEventListener('click', (event) => {
+	if (event.target === demoAccountDialog) demoAccountDialog.close();
+});
+window.addEventListener('dripdistrict:demo-order', renderDemoOrders);
+window.addEventListener('dripdistrict:open-demo-profile', () => {
+	renderDemoOrders();
+	demoAccountDialog.showModal();
+});
+renderDemoOrders();
 
 async function loadCurrentUser() {
 	let returnProvider = '';

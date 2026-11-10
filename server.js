@@ -481,7 +481,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 		if (typeof email?.email !== 'string') {
 			throw new ApiError(403, 'GitHub must provide a verified email address to sign in.');
 		}
-		return { sub: subject, email: email.email, email_verified: true };
+		return { sub: subject, email: email.email, email_verified: true, picture: githubUser.avatar_url };
 	}
 
 	function redirectToStore(response, parameters = {}) {
@@ -509,10 +509,21 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 		response.setHeader('Set-Cookie', [...cookieList, parts.join('; ')]);
 	}
 
+	function safeAvatarUrl(value) {
+		if (typeof value !== 'string') return '';
+		try {
+			const picture = new URL(value);
+			return picture.protocol === 'https:' ? picture.href : '';
+		} catch {
+			return '';
+		}
+	}
+
 	async function findOrCreateOAuthUser(provider, claims) {
 		const subject = typeof claims.sub === 'string' ? claims.sub : '';
 		const emailClaim = typeof claims.email === 'string' ? claims.email : '';
 		const email = emailClaim.trim().toLowerCase();
+		const avatarUrl = safeAvatarUrl(claims.picture);
 		const verified = claims.email_verified === true || claims.email_verified === 'true';
 		const validEmail = email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 		if (!subject || !verified || !validEmail) {
@@ -522,7 +533,13 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			const linked = records.find((record) => record.type === 'user'
 				&& record.providerIdentities?.some((identity) =>
 					identity.provider === provider && identity.subject === subject));
-			if (linked) return { value: linked };
+			if (linked) {
+				if (avatarUrl && linked.avatarUrl !== avatarUrl) {
+					linked.avatarUrl = avatarUrl;
+					return { changed: true, value: linked };
+				}
+				return { value: linked };
+			}
 
 			if (!validEmail) {
 				throw new ApiError(403, 'The identity provider did not return an email address we can use.');
@@ -532,6 +549,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			if (user) {
 				user.providerIdentities = [...(user.providerIdentities ?? []), identity];
 				user.emailVerified = true;
+				if (avatarUrl) user.avatarUrl = avatarUrl;
 				return { changed: true, value: user };
 			}
 
@@ -540,6 +558,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 				type: 'user',
 				email,
 				emailVerified: verified,
+				...(avatarUrl ? { avatarUrl } : {}),
 				providerIdentities: [identity],
 				createdAt: new Date().toISOString()
 			};
@@ -619,7 +638,13 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 	}
 
 	function publicUser(user) {
-		return { id: user.id, email: user.email, createdAt: user.createdAt };
+		const avatarUrl = safeAvatarUrl(user.avatarUrl);
+		return {
+			id: user.id,
+			email: user.email,
+			createdAt: user.createdAt,
+			...(avatarUrl ? { avatarUrl } : {})
+		};
 	}
 
 	async function getAccessToken() {
@@ -781,7 +806,7 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 							redirect_uri: redirectUri,
 							response_type: 'code',
 							response_mode: 'query',
-							scope: 'openid email',
+							scope: 'openid email profile',
 							state,
 							nonce,
 							code_challenge: codeChallenge,
@@ -1124,8 +1149,9 @@ export function createServer({ ordersFile = defaultOrdersFile, authFile = defaul
 			if (request.method === 'GET' && url.pathname === '/api/products') {
 				const category = url.searchParams.get('category');
 				const search = url.searchParams.get('search')?.trim().toLowerCase();
-				if (category && category !== 'all' && !['tops', 'bottoms', 'extras'].includes(category)) {
-					throw new ApiError(400, 'Category must be tops, bottoms, extras, or all.');
+				const categories = ['burgers', 'pizza', 'bowls', 'salads', 'sides', 'desserts', 'drinks', 'specials'];
+				if (category && category !== 'all' && !categories.includes(category)) {
+					throw new ApiError(400, 'Choose a valid menu category or all.');
 				}
 				const result = products.filter((product) => {
 					const matchesCategory = !category || category === 'all' || product.category === category;

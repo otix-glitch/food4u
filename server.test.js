@@ -47,7 +47,7 @@ function makeGitHubFetch(emails = [{ email: 'github@example.com', primary: true,
 			return jsonResponse({ access_token: 'github-access-token' });
 		}
 		if (url === 'https://api.github.com/user') {
-			return jsonResponse({ id: 12345 });
+			return jsonResponse({ id: 12345, avatar_url: 'https://avatars.githubusercontent.com/u/12345' });
 		}
 		if (url === 'https://api.github.com/user/emails') {
 			return jsonResponse(emails);
@@ -145,7 +145,7 @@ function makePayPalFetch() {
 	return { fetchImpl, requests };
 }
 
-async function createPayPalOrder(baseUrl, items = [{ id: '1', size: 'M', quantity: 2, unitPrice: 0.01 }]) {
+async function createPayPalOrder(baseUrl, items = [{ id: 'food-1', size: 'M', quantity: 2, unitPrice: 0.01 }]) {
 	return fetch(`${baseUrl}/api/paypal/orders`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -161,17 +161,26 @@ test('serves the complete catalog and supports category and search filters', asy
 		const response = await fetch(`${baseUrl}/api/products`);
 		const catalog = await response.json();
 		assert.equal(response.status, 200);
-		assert.equal(catalog.length, 58);
+		assert.equal(catalog.length, 14);
+		const imagePaths = [...new Set(catalog.map((product) => product.image))];
+		assert.equal(imagePaths.length, catalog.length, 'every product should have its own photo');
+		for (const imagePath of imagePaths) {
+			const imageResponse = await fetch(new URL(imagePath, baseUrl));
+			assert.equal(imageResponse.status, 200, `${imagePath} should be available locally`);
+			assert.match(imageResponse.headers.get('Content-Type'), /^image\//);
+			assert.ok((await imageResponse.arrayBuffer()).byteLength > 1_000, `${imagePath} should contain photo data`);
+		}
+		assert.ok(catalog.every((product) => product.imageAlt.length > 10));
 
-		const categoryResponse = await fetch(`${baseUrl}/api/products?category=bottoms`);
-		const bottoms = await categoryResponse.json();
-		assert.equal(bottoms.length, 18);
-		assert.ok(bottoms.every((product) => product.category === 'bottoms'));
+		const categoryResponse = await fetch(`${baseUrl}/api/products?category=burgers`);
+		const burgers = await categoryResponse.json();
+		assert.equal(burgers.length, 2);
+		assert.ok(burgers.every((product) => product.category === 'burgers'));
 
-		const searchResponse = await fetch(`${baseUrl}/api/products?search=heavy%20tee`);
+		const searchResponse = await fetch(`${baseUrl}/api/products?search=district%20smash`);
 		const matches = await searchResponse.json();
-		assert.ok(matches.some((product) => product.name === 'District Heavy Tee'));
-	});
+		assert.ok(matches.some((product) => product.name === 'The District Smash'));
+	}, { staticDirectory: join(process.cwd(), 'public') });
 });
 
 test('keeps PayPal checkout disabled until server credentials are configured', async (t) => {
@@ -199,6 +208,7 @@ test('exposes social provider availability only when provider credentials are co
 		assert.equal(authorizationUrl.searchParams.get('client_id'), 'google-client-id');
 		assert.equal(authorizationUrl.searchParams.get('redirect_uri'), 'http://localhost:5173/api/auth/google/callback');
 		assert.equal(authorizationUrl.searchParams.get('code_challenge_method'), 'S256');
+		assert.equal(authorizationUrl.searchParams.get('scope'), 'openid email profile');
 
 		const githubAuthorization = await fetch(`${baseUrl}/api/auth/github/start`, { redirect: 'manual' });
 		assert.equal(githubAuthorization.status, 302);
@@ -287,7 +297,12 @@ test('GitHub sign-in links verified primary emails to existing accounts', async 
 		const user = users.find((record) => record.type === 'user' && record.email === 'github@example.com');
 		assert.ok(user.passwordHash);
 		assert.equal(user.emailVerified, true);
+		assert.equal(user.avatarUrl, 'https://avatars.githubusercontent.com/u/12345');
 		assert.deepEqual(user.providerIdentities, [{ provider: 'github', subject: '12345' }]);
+		const sessionCookie = callback.headers.get('set-cookie').split(';')[0];
+		const currentUser = await fetch(`${baseUrl}/api/auth/me`, { headers: { Cookie: sessionCookie } });
+		assert.equal(currentUser.status, 200);
+		assert.equal((await currentUser.json()).user.avatarUrl, 'https://avatars.githubusercontent.com/u/12345');
 		assert.equal(github.requests.length, 3);
 		assert.equal(github.requests[0].options.method, 'POST');
 		assert.match(github.requests[0].options.body.toString(), /client_secret=github-client-secret/);
@@ -670,8 +685,8 @@ test('persists account data in SQLite and isolates it between accounts', async (
 		const first = await signIn('first@example.com');
 		const firstData = {
 			userId: first.user.id,
-			cart: [{ id: '1', size: 'M', quantity: 2 }],
-			favorites: ['2', '3']
+			cart: [{ id: 'food-1', size: 'M', quantity: 2 }],
+			favorites: ['food-2', 'food-3']
 		};
 		const saveResponse = await fetch(`${baseUrl}/api/account/data`, {
 			method: 'PUT',
@@ -737,8 +752,8 @@ test('creates and captures PayPal orders using catalog prices and persists shipp
 		const remoteOrderRequest = paypal.requests.find((request) =>
 			request.url.endsWith('/v2/checkout/orders') && request.method === 'POST');
 		const remoteOrder = JSON.parse(remoteOrderRequest.body);
-		assert.equal(remoteOrder.purchase_units[0].amount.value, '84.00');
-		assert.equal(remoteOrder.purchase_units[0].items[0].unit_amount.value, '42.00');
+		assert.equal(remoteOrder.purchase_units[0].amount.value, '29.00');
+		assert.equal(remoteOrder.purchase_units[0].items[0].unit_amount.value, '14.50');
 		assert.equal(remoteOrder.application_context.shipping_preference, 'GET_FROM_FILE');
 		assert.match(remoteOrderRequest.headers.Authorization, /^Bearer test-access-token$/);
 
@@ -756,7 +771,7 @@ test('creates and captures PayPal orders using catalog prices and persists shipp
 		const storedOrders = JSON.parse(await readFile(join(directory, 'orders.json'), 'utf8'));
 		assert.equal(storedOrders.length, 1);
 		assert.equal(storedOrders[0].status, 'completed');
-		assert.equal(storedOrders[0].total, 84);
+		assert.equal(storedOrders[0].total, 29);
 		assert.equal(storedOrders[0].paypalCaptureId, 'PAYPAL-CAPTURE-1');
 		assert.equal(storedOrders[0].customer.address, '1 Example Street, Lagos, NG');
 		assert.equal(storedOrders[0].customer.email, 'payer@example.com');
@@ -789,7 +804,7 @@ test('shows only the signed-in account its own order history', async (t) => {
 			headers: { 'Content-Type': 'application/json', Cookie: firstCookie },
 			body: JSON.stringify({
 				customer: { name: 'Buyer', email: 'buyer@example.com' },
-				items: [{ id: '1', size: 'M', quantity: 1 }]
+				items: [{ id: 'food-1', size: 'M', quantity: 1 }]
 			})
 		});
 		assert.equal(orderResponse.status, 201);
@@ -802,7 +817,7 @@ test('shows only the signed-in account its own order history', async (t) => {
 		const { orders } = await ownOrders.json();
 		assert.equal(orders.length, 1);
 		assert.equal(orders[0].status, 'completed');
-		assert.equal(orders[0].total, 42);
+		assert.equal(orders[0].total, 14.5);
 		assert.equal('paypalOrderId' in orders[0], false);
 
 		const secondCookie = await createAndSignIn('other@example.com');
@@ -826,7 +841,7 @@ test('rejects invalid cart items before contacting PayPal', async (t) => {
 test('verifies PayPal webhooks and applies refund notifications idempotently', async (t) => {
 	const paypal = makePayPalFetch();
 	await withApi(t, async (baseUrl, directory) => {
-		const createResponse = await createPayPalOrder(baseUrl, [{ id: '1', size: 'M', quantity: 1 }]);
+		const createResponse = await createPayPalOrder(baseUrl, [{ id: 'food-1', size: 'M', quantity: 1 }]);
 		assert.equal(createResponse.status, 201);
 		const captureResponse = await fetch(`${baseUrl}/api/paypal/orders/PAYPAL-ORDER-1/capture`, { method: 'POST' });
 		assert.equal(captureResponse.status, 200);

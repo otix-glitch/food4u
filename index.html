@@ -3,22 +3,31 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="theme-color" content="#f3f0e9">
-	<meta name="description" content="Independent streetwear for wherever the day takes you. Shop the latest drop from Drip District.">
-	<title>Drip District — Wear Your Own Way</title>
-	<link rel="icon" type="image/jpeg" href="/favicon.jpg">
+	<meta name="theme-color" content="#f8f8f5">
+	<meta name="description" content="Fresh comfort food, made to order and delivered to your door. Find your new favorite at Food 4 U.">
+	<title>Food 4 U — Good food, delivered</title>
+	<link rel="icon" type="image/jpeg" href="/food-4-u-favicon.jpg">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<style>
 		:root {
-			--paper: #f3f0e9;
-			--ink: #171715;
-			--muted: #79776f;
-			--orange: #f15a32;
-			--line: #d9d6ce;
+			--paper: #f8f8f5;
+			--ink: #202b25;
+			--muted: #747d76;
+			--orange: #f06b3d;
+			--line: #e8e9e4;
+			--surface: #ffffff;
 			--display: "Space Grotesk", sans-serif;
 			--body: "DM Sans", sans-serif;
+		}
+		:root[data-theme="dark"] {
+			--paper: #1d2721;
+			--ink: #f7f6f1;
+			--muted: #b6c0b9;
+			--orange: #ff8a61;
+			--line: #3b473f;
+			--surface: #25322a;
 		}
 		* { box-sizing: border-box; }
 		html { scroll-behavior: smooth; }
@@ -147,8 +156,139 @@
 		.app-actions { display: flex; justify-content: flex-end; gap: 12px; }
 		.app-actions button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 3px; background: transparent; font-size: 11px; font-weight: 700; }
 		.app-actions button:hover, .app-actions button[aria-pressed="true"] { border-color: var(--ink); }
+		.app-actions .theme-toggle { min-width: 38px; padding: 0 9px; }
+		.account-avatar { position: relative; display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; overflow: hidden; border-radius: 50%; background: #e7e3da; color: var(--muted); }
+		.account-avatar svg, .account-avatar img { width: 100%; height: 100%; }
+		.account-avatar svg { padding: 3px; }
+		.account-avatar img { position: absolute; inset: 0; object-fit: cover; }
+		.account-avatar img[hidden] { display: none; }
 		.app-actions .bag-button { border-color: var(--ink); background: var(--ink); color: white; }
 		.app-actions .bag-count { width: 20px; height: 20px; background: var(--orange); }
+		.promo-banner { display: flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; background: var(--orange); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
+		.promo-banner button { padding: 4px 7px; border: 1px solid rgba(255,255,255,.7); border-radius: 3px; background: transparent; color: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; }
+		.promo-banner button:hover { background: rgba(255,255,255,.18); }
+		.spotlight-demo-profile { align-self: flex-start; margin-top: 20px; padding: 8px 0; border: 0; border-bottom: 1px solid rgba(247,242,234,.7); background: transparent; color: #f7f2ea; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+		.spotlight-demo-profile:hover { color: #ffb59d; }
+		.demo-note { color: var(--muted); font-size: 10px; }
+		.stock-tag { position: absolute; right: 12px; bottom: 12px; padding: 6px 8px; border-radius: 2px; background: rgba(23,23,21,.84); color: white; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+		.product-rating { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: var(--muted); font-size: 10px; }
+		.product-rating .stars, .review-stars { color: var(--orange); letter-spacing: .08em; }
+		.recently-viewed { max-width: 1480px; margin: 0 auto; padding: 0 5% 72px; }
+		.recently-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+		.recently-heading h2 { margin: 0; font-family: var(--display); font-size: 22px; }
+		.recently-grid { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 5px; scroll-snap-type: x mandatory; }
+		.recent-card { display: grid; min-width: 0; grid-template-columns: 58px 1fr; flex: 0 0 min(250px, 80vw); align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); text-align: left; scroll-snap-align: start; }
+		.recent-card img { width: 58px; height: 66px; object-fit: cover; background: var(--line); }
+		.recent-card strong, .recent-card span { display: block; }
+		.recent-card strong { font-size: 10px; }
+		.recent-card span { margin-top: 4px; color: var(--muted); font-size: 10px; }
+		.recent-empty { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; }
+		.demo-rating { margin: 12px 0; font-size: 12px; }
+		.demo-rating .review-count { color: var(--muted); }
+		.detail-gallery { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
+		.detail-gallery-main { display: block; width: 100%; max-height: 290px; aspect-ratio: 4 / 3; object-fit: cover; background: var(--line); }
+		.detail-gallery-thumbs { display: flex; gap: 8px; overflow-x: auto; }
+		.detail-gallery-thumb { width: 56px; height: 62px; flex: 0 0 auto; padding: 2px; border: 1px solid var(--line); background: var(--surface); }
+		.detail-gallery-thumb[aria-pressed="true"] { border-color: var(--orange); }
+		.detail-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+		.swatch-list { display: flex; gap: 9px; }
+		.color-swatch { width: 28px; height: 28px; padding: 0; border: 2px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--line); }
+		.color-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--orange); }
+		.detail-reviews { margin: 16px 0 4px; padding: 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+		.detail-reviews h3 { margin: 0 0 8px; font-family: var(--display); font-size: 15px; }
+		.detail-reviews p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+		.promo-field { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+		.promo-field input { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); }
+		.promo-field button { padding: 0 12px; border: 1px solid var(--line); border-radius: 3px; background: transparent; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+		.checkout-totals { display: grid; gap: 7px; margin: 14px 0; font-size: 12px; }
+		.checkout-totals div { display: flex; justify-content: space-between; gap: 10px; }
+		.checkout-totals .discount { color: #257447; }
+		.demo-order-list { padding-left: 18px; font-size: 11px; line-height: 1.7; }
+		.demo-profile-card { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 13px; margin-top: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+		.demo-profile-card img { width: 62px; height: 62px; border-radius: 50%; }
+		.demo-profile-card strong, .demo-profile-card span { display: block; }
+		.demo-profile-card span { margin-top: 4px; color: var(--muted); font-size: 11px; }
+		.demo-account-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+		.demo-account-actions button { padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: transparent; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+		dialog.product-dialog { width: min(620px, calc(100% - 28px)); }
+		.product-dialog .dialog-content { max-height: calc(100dvh - 30px); overflow-y: auto; }
+		.product-dialog .dialog-add { margin-top: 12px; }
+		:root[data-theme="dark"] body { color-scheme: dark; background: var(--paper); }
+		:root[data-theme="dark"] .app-header, :root[data-theme="dark"] .spotlight-card,
+		:root[data-theme="dark"] .recent-card, :root[data-theme="dark"] .detail-reviews,
+		:root[data-theme="dark"] .demo-profile-card { background: var(--surface); }
+		:root[data-theme="dark"] .spotlight-copy { background: linear-gradient(135deg, #090909, #292825); }
+		:root[data-theme="dark"] .button-primary,
+		:root[data-theme="dark"] .checkout-button:not(:disabled),
+		:root[data-theme="dark"] .product-actions .add-button,
+		:root[data-theme="dark"] .app-actions .bag-button {
+			border-color: var(--orange);
+			background: var(--orange);
+			color: #171715;
+			font-weight: 800;
+		}
+		:root[data-theme="dark"] .button-primary:hover,
+		:root[data-theme="dark"] .checkout-button:not(:disabled):hover,
+		:root[data-theme="dark"] .product-actions .add-button:hover,
+		:root[data-theme="dark"] .app-actions .bag-button:hover {
+			border-color: #ffa27f;
+			background: #ffa27f;
+			color: #171715;
+		}
+		:root[data-theme="dark"] .checkout-button:disabled {
+			border: 1px solid #5b5c56;
+			background: #41423e;
+			color: #c1beb5;
+			opacity: 1;
+		}
+		:root[data-theme="dark"] .app-actions .theme-toggle[aria-pressed="true"] {
+			border-color: var(--orange);
+			background: var(--orange);
+			color: #171715;
+		}
+		:root[data-theme="dark"] .wish-button,
+		:root[data-theme="dark"] .quick-add {
+			border: 1px solid var(--line);
+			background: var(--surface);
+			color: var(--ink);
+		}
+		:root[data-theme="dark"] .quick-add:hover {
+			border-color: var(--orange);
+			background: var(--orange);
+			color: #171715;
+		}
+		:root[data-theme="dark"] .promo-banner { color: #171715; }
+		:root[data-theme="dark"] .promo-banner button { border-color: rgba(23,23,21,.58); }
+		:root[data-theme="dark"] .empty-clear-filters,
+		:root[data-theme="dark"] .filter-button,
+		:root[data-theme="dark"] .details-button,
+		:root[data-theme="dark"] .demo-account-actions button,
+		:root[data-theme="dark"] .promo-field button {
+			border-color: #686961;
+			background: #343631;
+			color: var(--ink);
+		}
+		:root[data-theme="dark"] .empty-clear-filters:hover,
+		:root[data-theme="dark"] .filter-button:hover,
+		:root[data-theme="dark"] .details-button:hover,
+		:root[data-theme="dark"] .demo-account-actions button:hover,
+		:root[data-theme="dark"] .promo-field button:hover {
+			border-color: var(--orange);
+			background: #3c332e;
+		}
+		:root[data-theme="dark"] .category-button { color: var(--ink); }
+		:root[data-theme="dark"] .category-button:hover,
+		:root[data-theme="dark"] .category-button[aria-pressed="true"] { background: #393a35; }
+		:root[data-theme="dark"] .category-button[aria-pressed="true"] { box-shadow: inset 3px 0 var(--orange); }
+		:root[data-theme="dark"] .toast { background: #393a35; color: var(--ink); }
+		:root[data-theme="dark"] .toast.is-success { background: #24543a; color: #f4fff7; }
+		:root[data-theme="dark"] .toast.is-warning { background: #74401f; color: #fff7ed; }
+		:root[data-theme="dark"] .checkout-totals .discount { color: #9de0ad; }
+		:root[data-theme="dark"] .checkout-message { color: #ff9a83; }
+		:root[data-theme="dark"] .auth-message[data-error="true"] { color: #ff9a83; }
+		:root[data-theme="dark"] .catalog-tools select, :root[data-theme="dark"] .dialog-content select,
+		:root[data-theme="dark"] .auth-form input, :root[data-theme="dark"] #social-login-actions button,
+		:root[data-theme="dark"] .checkout-form input { border-color: var(--line); background: var(--surface); color: var(--ink); }
 		.shop-spotlight { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; max-width: 1480px; margin: 22px auto 0; padding: 0 5%; }
 		.spotlight-copy { display: flex; flex-direction: column; justify-content: center; min-height: 220px; padding: 32px 30px; border-radius: 18px; background: linear-gradient(135deg, #171715, #2a2927); color: #f7f2ea; }
 		.spotlight-copy .eyebrow { color: rgba(255,255,255,.8); }
@@ -179,7 +319,11 @@
 		.results-count { color: var(--muted); font-size: 11px; }
 		.catalog-tools { display: flex; align-items: center; gap: 9px; }
 		.catalog-tools label { color: var(--muted); font-size: 11px; }
-		.catalog-tools select { height: 36px; padding: 0 25px 0 9px; border: 1px solid var(--line); border-radius: 3px; background: white; font-size: 11px; }
+		.catalog-tools select { height: 36px; padding: 0 25px 0 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); font-size: 11px; }
+		.catalog-tools .compare-trigger { display: inline-flex; min-height: 38px; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid var(--ink); border-radius: 3px; background: var(--ink); color: var(--paper); font-size: 10px; font-weight: 700; letter-spacing: .08em; transition: background .2s, border-color .2s, color .2s, transform .2s; }
+		.compare-trigger::before { content: "↔"; font-size: 14px; line-height: 1; }
+		.catalog-tools .compare-trigger:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--orange); background: var(--orange); color: #171715; }
+		.catalog-tools .compare-trigger:disabled { cursor: not-allowed; border-color: var(--line); background: var(--surface); color: var(--muted); }
 		.product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px 16px; }
 		.product { min-width: 0; }
 		.product-image-wrap { aspect-ratio: 4 / 4.7; }
@@ -221,6 +365,32 @@
 		.checkout-button:disabled { cursor: not-allowed; background: #bcb9b2; }
 		dialog:not(.cart-drawer) { width: min(480px, calc(100% - 28px)); max-height: calc(100% - 28px); padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); box-shadow: 0 20px 70px rgba(0,0,0,.2); }
 		dialog::backdrop { background: rgba(23,23,21,.48); }
+		dialog#comparison-dialog { width: min(940px, calc(100% - 28px)); max-height: min(86vh, 760px); overflow: hidden; }
+		#comparison-dialog .dialog-content { display: flex; max-height: inherit; min-height: 0; flex-direction: column; overflow: hidden; }
+		#comparison-content { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; }
+		.comparison-heading-copy { min-width: 0; }
+		.comparison-heading-copy h2 { display: flex; align-items: center; gap: 10px; }
+		.comparison-heading-copy h2::before { width: 3px; height: 24px; flex: 0 0 3px; background: var(--orange); content: ""; }
+		.comparison-heading-copy p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+		.comparison-table-wrap { min-height: 0; flex: 1 1 auto; margin-top: 21px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); scrollbar-color: var(--muted) var(--paper); }
+		.comparison-table { width: 100%; min-width: 650px; border-collapse: separate; border-spacing: 0; text-align: left; }
+		.comparison-table th, .comparison-table td { min-width: 175px; padding: 14px 16px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 12px; line-height: 1.5; vertical-align: middle; }
+		.comparison-table tr > :last-child { border-right: 0; }
+		.comparison-table tbody tr:last-child > * { border-bottom: 0; }
+		.comparison-table thead th { background: var(--surface); }
+		.comparison-table thead th:first-child { position: sticky; left: 0; z-index: 2; min-width: 132px; width: 132px; background: var(--paper); }
+		.comparison-table tbody th { position: sticky; left: 0; z-index: 1; min-width: 132px; width: 132px; background: var(--paper); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+		.comparison-product { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 11px; }
+		.comparison-product img { display: block; width: 58px; height: 70px; border-radius: 2px; background: var(--line); object-fit: cover; }
+		.comparison-product strong, .comparison-product span { display: block; }
+		.comparison-product strong { font-family: var(--display); font-size: 12px; line-height: 1.35; }
+		.comparison-product span { margin-top: 5px; color: var(--muted); font-size: 10px; font-weight: 500; text-transform: capitalize; }
+		.comparison-table .comparison-price-row td { color: var(--orange); font-family: var(--display); font-size: 16px; font-weight: 700; }
+		.comparison-remove { min-height: 32px; padding: 0 11px; border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; transition: border-color .2s, color .2s, background .2s; }
+		.comparison-remove:hover { border-color: var(--orange); background: var(--orange); color: #171715; }
+		:root[data-theme="dark"] .catalog-tools .compare-trigger:not(:disabled) { border-color: var(--orange); background: var(--orange); color: #171715; }
+		:root[data-theme="dark"] .catalog-tools .compare-trigger:hover:not(:disabled) { border-color: #ffa27f; background: #ffa27f; }
+		:root[data-theme="dark"] .catalog-tools .compare-trigger:disabled { border-color: #5b5c56; background: #343631; color: #c1beb5; }
 		.cart-drawer { left: auto; height: 100dvh; max-height: none; margin: 0; border: 0; border-radius: 0; }
 		.dialog-content { padding: 24px; }
 		.dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -271,6 +441,7 @@
 			.clear-filters { margin-top: 9px; }
 			.catalog-heading { align-items: flex-start; flex-direction: column; gap: 13px; }
 			.catalog-tools { align-self: stretch; justify-content: space-between; }
+			.catalog-tools .compare-trigger { padding: 0 10px; }
 			.product-grid { gap: 23px 10px; }
 			.product-meta { align-items: flex-start; font-size: 11px; }
 			.product-meta span:first-child { max-width: 72%; }
@@ -279,6 +450,17 @@
 			.product-actions button { min-height: 34px; font-size: 9px; }
 			.product-actions .details-button { padding: 0 8px; }
 			.catalog-footer { flex-direction: column; }
+			.recently-viewed { padding-right: 4%; padding-left: 4%; }
+			.recently-grid { gap: 8px; }
+			.recently-heading h2 { font-size: 18px; }
+			.promo-banner { flex-wrap: wrap; }
+			.dialog-content { padding: 18px; }
+			dialog#comparison-dialog { width: calc(100% - 20px); max-height: calc(100dvh - 20px); }
+			.comparison-table-wrap { margin-top: 16px; }
+			.comparison-table th, .comparison-table td { padding: 12px; }
+			.comparison-table thead th:first-child, .comparison-table tbody th { min-width: 110px; width: 110px; }
+			.comparison-product { grid-template-columns: 48px minmax(0, 1fr); gap: 8px; }
+			.comparison-product img { width: 48px; height: 60px; }
 		}
 		@media (max-width: 380px) {
 			.app-header { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
@@ -291,41 +473,184 @@
 			.catalog-tools { flex-wrap: wrap; }
 			.catalog-tools select { min-width: 0; max-width: 58%; }
 		}
+		:root { --food-green: #245c42; --food-green-dark: #193e2e; --food-shadow: 0 12px 32px rgba(32,43,37,.07); }
+		body { background: var(--paper); }
+		.app-header { min-height: 76px; gap: 28px; padding: 0 max(5%, calc((100% - 1380px) / 2)); border-color: var(--line); background: var(--surface); }
+		.app-brand { font-size: 22px; letter-spacing: -.07em; }
+		.app-brand span { color: var(--orange); }
+		.search-box input { height: 44px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
+		.search-box input:focus { border-color: var(--food-green); outline-color: rgba(36,92,66,.14); }
+		.search-icon { top: 10px; left: 15px; }
+		.app-actions { gap: 14px; }
+		.app-actions button { min-height: 40px; }
+		.app-actions #auth-trigger { gap: 8px; }
+		.app-actions .bag-button { min-height: 42px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--food-green); color: white; }
+		.bag-count { background: var(--orange); }
+		.promo-banner { min-height: 38px; background: var(--food-green-dark); color: #fff; letter-spacing: .035em; }
+		.promo-banner button { border-radius: 999px; }
+		.shop-spotlight { display: grid; max-width: 1380px; grid-template-columns: 1fr; gap: 18px; margin: 30px auto 0; padding: 0 5%; }
+		.spotlight-copy { position: relative; min-height: 330px; overflow: hidden; padding: clamp(30px, 5vw, 64px); border-radius: 24px; background: linear-gradient(90deg, rgba(20,49,35,.96) 0%, rgba(20,49,35,.86) 42%, rgba(20,49,35,.18) 100%), url('/assets/food/chef-special.jpg') right 48% / cover; box-shadow: var(--food-shadow); }
+		.spotlight-copy .eyebrow { color: #d3e2d7; }
+		.spotlight-copy .eyebrow::before { background: #f7a878; }
+		.spotlight-copy h2 { max-width: 570px; margin: 19px 0 12px; font-size: clamp(38px, 5.2vw, 66px); letter-spacing: -.055em; line-height: .98; }
+		.spotlight-copy p { max-width: 450px; font-size: 14px; }
+		.delivery-promise { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; color: #fff; font-size: 12px; }
+		.delivery-promise > span:first-child { color: #ffc098; font-size: 20px; }
+		.delivery-promise > span:last-child { padding-left: 10px; border-left: 1px solid rgba(255,255,255,.35); color: #d3e2d7; }
+		.spotlight-demo-profile { display: inline-flex; width: fit-content; min-height: 44px; align-items: center; gap: 12px; margin-top: 22px; padding: 0 19px; border-radius: 999px; background: var(--orange); color: #fff; font-size: 12px; font-weight: 700; }
+		.spotlight-demo-profile:hover { background: #df572d; }
+		.spotlight-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+		.spotlight-card { min-height: 145px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 4px 14px rgba(32,43,37,.025); }
+		.spotlight-card span { color: var(--food-green); font-size: 10px; letter-spacing: .08em; }
+		.spotlight-card h3 { margin: 13px 0 7px; font-size: 18px; }
+		.spotlight-card p { font-size: 12px; }
+		.app-layout { max-width: 1380px; grid-template-columns: 205px minmax(0, 1fr); gap: 34px; padding: 52px 5% 68px; scroll-margin-top: 88px; }
+		.filter-panel { top: 100px; }
+		.filter-panel h2 { margin-bottom: 20px; font-size: 20px; }
+		.filter-label { margin-top: 22px; }
+		.category-list { gap: 5px; }
+		.category-button { min-height: 39px; border-radius: 9px; }
+		.category-button:hover, .category-button[aria-pressed="true"] { background: #e9f1eb; color: var(--food-green-dark); }
+		.category-button[aria-pressed="true"] { box-shadow: inset 3px 0 var(--food-green); font-weight: 700; }
+		.category-count { font-variant-numeric: tabular-nums; }
+		.catalog-heading { align-items: flex-end; margin-bottom: 24px; }
+		.catalog-heading .eyebrow { color: var(--food-green); letter-spacing: .1em; }
+		.catalog-heading h1 { margin-top: 10px; font-size: clamp(30px, 3.5vw, 42px); letter-spacing: -.06em; }
+		.catalog-tools select { border-radius: 999px; }
+		.compare-trigger, #detail-compare { display: none !important; }
+		.product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+		.product { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 5px 18px rgba(32,43,37,.035); transition: transform .2s, box-shadow .2s; }
+		.product:hover { transform: translateY(-3px); box-shadow: var(--food-shadow); }
+		.product-image-wrap { aspect-ratio: 4 / 3; background: #eceee8; }
+		.product-image { transition: transform .45s cubic-bezier(.2,.7,.2,1); }
+		.product-tag { top: 11px; left: 11px; padding: 7px 10px; border-radius: 999px; background: #fff; color: var(--food-green-dark); font-size: 9px; letter-spacing: .04em; }
+		.stock-tag { border-radius: 999px; }
+		.wish-button { top: 10px; right: 10px; width: 35px; height: 35px; background: rgba(255,255,255,.94); }
+		.product-meta { align-items: flex-start; padding: 13px 14px 0; font-size: 13px; font-weight: 700; }
+		.product-meta span:first-child { max-width: 72%; }
+		.product-meta span:last-child { color: var(--food-green); white-space: nowrap; }
+		.product-category { min-height: 31px; margin: 5px 14px 0; font-size: 11px; line-height: 1.45; }
+		.product-rating { margin: 8px 14px 0; }
+		.product-actions { gap: 8px; margin: 12px 14px 14px; }
+		.product-actions button { min-height: 40px; border-radius: 999px; font-size: 10px; }
+		.product-actions .add-button { border-color: var(--food-green); background: var(--food-green); color: #fff; }
+		.product-actions .add-button:hover { border-color: var(--food-green-dark); background: var(--food-green-dark); }
+		.product-actions .details-button { border-color: var(--line); }
+		.empty-state { border: 1px dashed var(--line); border-radius: 16px; }
+		.catalog-footer { font-size: 11px; }
+		.recently-viewed { max-width: 1380px; margin: 0 auto; padding: 26px 5% 54px; }
+		.recently-heading h2 { font-size: 23px; }
+		.recent-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+		.cart-drawer { background: var(--surface); }
+		.drawer-heading h2 { font-size: 22px; }
+		.cart-line { grid-template-columns: 78px 1fr auto; }
+		.cart-line img { width: 78px; height: 78px; border-radius: 10px; }
+		.quantity-control { border-radius: 999px; }
+		.checkout-button { border-radius: 999px; background: var(--food-green); }
+		.checkout-button:hover:not(:disabled) { background: var(--food-green-dark); }
+		.cart-note { font-size: 11px; }
+		.product-dialog .detail-gallery-main { border-radius: 14px; }
+		.product-dialog .detail-gallery-thumbs { display: none; }
+		.product-dialog .dialog-add { border-radius: 999px; }
+		.dialog-content { border-radius: 16px; }
+		.toast { text-transform: none; letter-spacing: .01em; }
+		:root[data-theme="dark"] .spotlight-card { background: var(--surface); }
+		:root[data-theme="dark"] .category-button:hover,
+		:root[data-theme="dark"] .category-button[aria-pressed="true"] { background: #304537; color: var(--ink); }
+		:root[data-theme="dark"] .app-actions .bag-button,
+		:root[data-theme="dark"] .product-actions .add-button,
+		:root[data-theme="dark"] .checkout-button:not(:disabled) { background: var(--orange); color: #202b25; }
+		@media (max-width: 1000px) {
+			.app-layout { grid-template-columns: 1fr; gap: 20px; }
+			.filter-panel { position: static; }
+			.filter-panel h2, .filter-panel .filter-label { display: none; }
+			.category-list { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; }
+			.category-button { width: auto; min-width: max-content; flex: 0 0 auto; gap: 12px; border: 1px solid var(--line); background: var(--surface); }
+			.category-button[aria-pressed="true"] { border-color: var(--food-green); box-shadow: none; }
+			.clear-filters { margin-top: 4px; }
+		}
+		@media (max-width: 700px) {
+			.app-header { grid-template-columns: 1fr auto; gap: 10px 14px; padding: 10px 4%; }
+			.app-brand { font-size: 20px; }
+			.search-box { grid-column: 1 / -1; grid-row: 2; }
+			.app-actions { grid-column: 2; grid-row: 1; gap: 7px; }
+			.app-actions button { min-height: 36px; }
+			.app-actions .bag-button { min-height: 38px; }
+			.shop-spotlight { margin-top: 16px; padding: 0 4%; }
+			.spotlight-copy { min-height: 310px; padding: 30px 25px; border-radius: 19px; background-position: 64% center; }
+			.spotlight-copy h2 { max-width: 430px; font-size: clamp(36px, 8vw, 52px); }
+			.spotlight-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+			.spotlight-card { min-height: 132px; padding: 15px 13px; border-radius: 13px; }
+			.spotlight-card h3 { font-size: 15px; }
+			.spotlight-card p { font-size: 11px; }
+			.app-layout { padding: 34px 4% 48px; scroll-margin-top: 134px; }
+			.product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+			.product-meta { padding: 11px 11px 0; font-size: 12px; }
+			.product-category { min-height: 34px; margin-right: 11px; margin-left: 11px; font-size: 10px; }
+			.product-rating { margin-right: 11px; margin-left: 11px; }
+			.product-actions { flex-direction: column; margin: 10px 11px 12px; }
+			.product-actions button { min-height: 36px; }
+			.product-actions .details-button { order: 2; }
+			.product-actions .add-button { order: 1; }
+			.catalog-tools { gap: 7px; }
+			.recently-viewed { padding-right: 4%; padding-left: 4%; }
+		}
+		@media (max-width: 420px) {
+			.app-actions { gap: 4px; }
+			.app-actions button { padding: 0 6px; font-size: 9px; }
+			.app-actions #auth-trigger { gap: 4px; }
+			.account-avatar { display: none; }
+			.spotlight-copy { min-height: 300px; padding: 24px 20px; }
+			.spotlight-copy h2 { font-size: 36px; }
+			.delivery-promise { font-size: 10px; }
+			.spotlight-cards { grid-template-columns: repeat(3, minmax(145px, 1fr)); overflow-x: auto; }
+			.catalog-heading { gap: 10px; }
+			.catalog-tools { width: 100%; }
+			.catalog-tools select { max-width: none; }
+			.product-grid { gap: 10px; }
+			.product-tag { top: 7px; left: 7px; padding: 5px 7px; font-size: 8px; }
+			.wish-button { top: 6px; right: 6px; width: 30px; height: 30px; }
+			.product-actions button { font-size: 9px; }
+		}
 	</style>
 </head>
 <body>
-	<a class="skip-link" href="#shop">Skip to products</a>
+	<a class="skip-link" href="#shop">Skip to menu</a>
 	<header class="app-header">
-		<a class="wordmark app-brand" href="#shop" aria-label="Drip District shop">DRIP<span>.</span>DISTRICT</a>
-		<label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><span class="visually-hidden">Search products</span><input id="search" type="search" placeholder="Search products..." autocomplete="off"></label>
+		<a class="wordmark app-brand" href="#shop" aria-label="Food 4 U menu">FOOD<span>4</span>U</a>
+		<label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><span class="visually-hidden">Search the menu</span><input id="search" type="search" placeholder="Search dishes and ingredients..." autocomplete="off"></label>
 		<div class="app-actions">
-			<button id="favorites-toggle" type="button" aria-pressed="false">Saved <span id="favorites-count">0</span></button>
-			<button id="auth-trigger" type="button" aria-haspopup="dialog" aria-controls="auth-dialog">Sign in</button>
-			<button class="bag-button" id="open-cart" type="button" aria-label="Open shopping bag, 0 items" aria-expanded="false" aria-controls="cart-drawer">Bag <span class="bag-count" aria-live="polite">0</span></button>
+			<button id="favorites-toggle" type="button" aria-pressed="false">Favorites <span id="favorites-count">0</span></button>
+			<button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">☾</button>
+			<button id="auth-trigger" type="button" aria-haspopup="dialog" aria-controls="auth-dialog"><span class="account-avatar" aria-hidden="true"><svg id="auth-avatar-placeholder" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2c-4.1 0-7.5 2.1-7.5 4.7V21h15v-2.3c0-2.6-3.4-4.7-7.5-4.7Z"/></svg><img id="auth-avatar" alt="" referrerpolicy="no-referrer" hidden></span><span id="auth-trigger-label">Sign in</span></button>
+			<button class="bag-button" id="open-cart" type="button" aria-label="Open your order, 0 items" aria-expanded="false" aria-controls="cart-drawer">Order <span class="bag-count" aria-live="polite">0</span></button>
 		</div>
 	</header>
+	<div class="promo-banner"><span>Take 10% off your first order with code <strong>DEMO10</strong></span><button type="button" id="copy-promo">Copy code</button></div>
 
 	<section class="shop-spotlight" aria-label="Featured collection highlights">
 		<div class="spotlight-copy">
-			<div class="eyebrow">Fresh drop</div>
-			<h2>Built for everyday motion.</h2>
-			<p>Layered essentials, easy denim, and carry pieces made to ride the city from sunrise to late-night plans.</p>
+			<div class="eyebrow">Made fresh. Delivered fast.</div>
+			<h2>Your next favorite is one tap away.</h2>
+			<p>Big comfort, bright flavors, and all your neighborhood favorites—made to order and brought right to you.</p>
+			<div class="delivery-promise"><span aria-hidden="true">⌖</span><strong>Delivering around you</strong><span>Ready in 25–35 min</span></div>
+			<a class="spotlight-demo-profile" href="#shop">Explore the menu <span aria-hidden="true">→</span></a>
 		</div>
 		<div class="spotlight-cards">
 			<article class="spotlight-card">
-				<span>01</span>
-				<h3>Essentials</h3>
-				<p>Clean silhouettes that work from commute to coffee runs.</p>
+				<span>01 · Fresh</span>
+				<h3>Made to order</h3>
+				<p>Every plate starts with fresh, quality ingredients.</p>
 			</article>
 			<article class="spotlight-card">
-				<span>02</span>
-				<h3>Layering</h3>
-				<p>Structured fills and breathable fabrics for all-day wear.</p>
+				<span>02 · Quick</span>
+				<h3>At your door</h3>
+				<p>Hot favorites, headed your way in about 30 minutes.</p>
 			</article>
 			<article class="spotlight-card">
-				<span>03</span>
-				<h3>Carry</h3>
-				<p>Utility pieces that keep your essentials dialed in.</p>
+				<span>03 · Easy</span>
+				<h3>Order your way</h3>
+				<p>Pick a favorite, make it a meal, and we’ll take it from here.</p>
 			</article>
 		</div>
 	</section>
@@ -333,42 +658,60 @@
 	<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 	<main class="app-layout" id="shop">
-		<aside class="filter-panel" aria-label="Product filters">
-			<h2>Filters</h2>
+		<aside class="filter-panel" aria-label="Menu filters">
+			<h2>Explore menu</h2>
 			<div class="filter-label">Category</div>
-			<div class="category-list" role="group" aria-label="Filter by category">
-				<button class="category-button" type="button" data-category="all" aria-pressed="true"><span>All products</span><span class="category-count" data-count="all">58</span></button>
-				<button class="category-button" type="button" data-category="tops" aria-pressed="false"><span>Tops</span><span class="category-count" data-count="tops">22</span></button>
-				<button class="category-button" type="button" data-category="bottoms" aria-pressed="false"><span>Bottoms</span><span class="category-count" data-count="bottoms">18</span></button>
-				<button class="category-button" type="button" data-category="extras" aria-pressed="false"><span>Extras</span><span class="category-count" data-count="extras">18</span></button>
+			<div class="category-list" role="group" aria-label="Filter menu by category">
+				<button class="category-button" type="button" data-category="all" aria-pressed="true"><span>Everything</span><span class="category-count" data-count="all">14</span></button>
+				<button class="category-button" type="button" data-category="burgers" aria-pressed="false"><span>Burgers</span><span class="category-count" data-count="burgers">2</span></button>
+				<button class="category-button" type="button" data-category="pizza" aria-pressed="false"><span>Pizza</span><span class="category-count" data-count="pizza">2</span></button>
+				<button class="category-button" type="button" data-category="bowls" aria-pressed="false"><span>Bowls</span><span class="category-count" data-count="bowls">2</span></button>
+				<button class="category-button" type="button" data-category="salads" aria-pressed="false"><span>Salads</span><span class="category-count" data-count="salads">2</span></button>
+				<button class="category-button" type="button" data-category="sides" aria-pressed="false"><span>Sides</span><span class="category-count" data-count="sides">2</span></button>
+				<button class="category-button" type="button" data-category="desserts" aria-pressed="false"><span>Desserts</span><span class="category-count" data-count="desserts">2</span></button>
+				<button class="category-button" type="button" data-category="drinks" aria-pressed="false"><span>Drinks</span><span class="category-count" data-count="drinks">1</span></button>
+				<button class="category-button" type="button" data-category="specials" aria-pressed="false"><span>Specials</span><span class="category-count" data-count="specials">1</span></button>
 			</div>
-			<div class="filter-label">Your list</div>
-			<button class="clear-filters" id="clear-filters" type="button">Clear filters</button>
+			<div class="filter-label">Your order</div>
+			<button class="clear-filters" id="clear-filters" type="button">Reset menu</button>
 		</aside>
 		<section class="catalog" aria-labelledby="catalog-title">
 			<div class="catalog-heading">
-				<div><div class="eyebrow">Drip District / Shop</div><h1 id="catalog-title">All pieces</h1><div class="results-count" id="results-count" aria-live="polite">Loading products…</div></div>
-				<div class="catalog-tools"><label for="sort-products">Sort by</label><select id="sort-products"><option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select><button class="filter-button" id="compare-products" type="button" disabled>Compare (0)</button></div>
+				<div><div class="eyebrow">Good food, around the corner</div><h1 id="catalog-title">Today’s menu</h1><div class="results-count" id="results-count" aria-live="polite">Loading the menu…</div></div>
+				<div class="catalog-tools"><label for="sort-products">Sort by</label><select id="sort-products"><option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select><button class="compare-trigger" id="compare-products" type="button" disabled>Compare (0)</button></div>
 			</div>
 			<div class="product-grid" aria-live="polite"></div>
 		</section>
-		<div class="catalog-footer"><span id="catalog-footer-count">Loading products</span><span>PayPal checkout · USD</span></div>
+		<div class="catalog-footer"><span id="catalog-footer-count">Loading the menu</span><span>Freshly prepared · demo checkout</span></div>
 	</main>
+	<section class="recently-viewed" aria-labelledby="recently-viewed-title">
+		<div class="recently-heading"><h2 id="recently-viewed-title">Recently viewed dishes</h2><span class="demo-note">Saved on this device</span></div>
+		<div class="recently-grid" id="recently-viewed-grid"><p class="recent-empty">Tap a dish to see its details.</p></div>
+	</section>
 
 	<div class="cart-scrim" id="cart-scrim" hidden></div>
 	<aside class="cart-drawer" id="cart-drawer" aria-labelledby="cart-title" aria-modal="true" aria-hidden="true" hidden>
-		<div class="drawer-heading"><h2 id="cart-title">Your bag <span class="drawer-count"></span></h2><button class="icon-button" type="button" data-close-cart aria-label="Close bag">×</button></div>
+		<div class="drawer-heading"><h2 id="cart-title">Your order <span class="drawer-count"></span></h2><button class="icon-button" type="button" data-close-cart aria-label="Close order">×</button></div>
 		<div class="cart-items" id="cart-items"></div>
-		<div class="cart-summary"><div class="subtotal-row"><span>Subtotal</span><span id="cart-subtotal">$0.00</span></div><p class="cart-note">Shipping and taxes are not included.</p><button class="checkout-button" id="start-checkout" type="button" disabled>Continue to checkout</button></div>
+		<div class="cart-summary"><div class="subtotal-row"><span>Subtotal</span><span id="cart-subtotal">$0.00</span></div><p class="cart-note">Demo checkout · no payment will be collected.</p><button class="checkout-button" id="start-checkout" type="button" disabled>Continue to checkout</button></div>
 	</aside>
 
 	<dialog class="product-dialog" id="product-dialog" aria-labelledby="detail-name">
-		<div class="dialog-content"><div class="dialog-header"><div><h2 id="detail-name"></h2><p class="dialog-price" id="detail-price"></p></div><button class="icon-button" type="button" data-close-product aria-label="Close product details">×</button></div><img class="dialog-image" id="detail-image" alt=""><p class="dialog-description" id="detail-description"></p><label for="detail-size">Size</label><select id="detail-size"><option value="XS">XS</option><option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option></select><button class="checkout-button dialog-add" id="detail-add" type="button">Add to bag</button><button class="filter-button dialog-add" id="detail-compare" type="button">Add to comparison</button></div>
+		<div class="dialog-content">
+			<div class="dialog-header"><div><h2 id="detail-name"></h2><p class="dialog-price" id="detail-price"></p></div><button class="icon-button" type="button" data-close-product aria-label="Close product details">×</button></div>
+			<div class="detail-gallery"><img class="detail-gallery-main" id="detail-image" alt=""><div class="detail-gallery-thumbs" id="detail-gallery-thumbs" aria-label="Menu photo gallery"></div><span class="demo-note">Freshly prepared in our kitchen.</span></div>
+			<div class="demo-rating" id="detail-rating"></div>
+			<p class="dialog-description" id="detail-description"></p>
+			<div id="detail-swatches" hidden></div>
+			<select id="detail-size" aria-label="Portion size" hidden><option value="XS">Snack</option><option value="S">Small</option><option value="M" selected>Regular</option><option value="L">Large</option><option value="XL">Share size</option></select>
+			<section class="detail-reviews" aria-labelledby="detail-reviews-title"><h3 id="detail-reviews-title">What people are saying <span class="demo-note">· sample reviews</span></h3><p id="detail-review-quote"></p></section>
+			<button class="checkout-button dialog-add" id="detail-add" type="button">Add to order</button><button class="filter-button dialog-add" id="detail-compare" type="button">Add to comparison</button>
+		</div>
 	</dialog>
 
 	<dialog id="comparison-dialog" aria-labelledby="comparison-title">
 		<div class="dialog-content">
-			<div class="dialog-header"><h2 id="comparison-title">Compare products</h2><button class="icon-button" type="button" data-close-comparison aria-label="Close comparison">×</button></div>
+			<div class="dialog-header"><div class="comparison-heading-copy"><h2 id="comparison-title">Compare products</h2><p>Review details side by side. Scroll horizontally to see every product.</p></div><button class="icon-button" type="button" data-close-comparison aria-label="Close comparison">×</button></div>
 			<div id="comparison-content"></div>
 		</div>
 	</dialog>
@@ -376,7 +719,7 @@
 	<dialog id="auth-dialog" aria-labelledby="auth-title">
 		<div class="dialog-content">
 			<div class="dialog-header">
-				<div><h2 id="auth-title">Sign in</h2><p class="auth-description" id="auth-description">Sign in to your Drip District account.</p></div>
+				<div><h2 id="auth-title">Sign in</h2><p class="auth-description" id="auth-description">Sign in to your Food 4 U account.</p></div>
 				<button class="icon-button" type="button" id="auth-close" aria-label="Close sign in">×</button>
 			</div>
 			<div id="auth-signed-in" hidden>
@@ -401,6 +744,7 @@
 				</button>
 			</div>
 			<p class="auth-description" id="social-login-separator" hidden>Or sign in with email</p>
+			<div class="demo-account-actions"><button type="button" id="demo-profile-button">Preview demo profile</button><span class="demo-note">Sample data only</span></div>
 			<form class="auth-form" id="auth-form">
 				<div><label for="auth-email-input">Email</label><input id="auth-email-input" name="email" type="email" autocomplete="email" required maxlength="254"></div>
 				<div><label for="auth-password-input">Password</label><input id="auth-password-input" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128"></div>
@@ -422,9 +766,26 @@
 			<p class="auth-description" id="auth-warning">Password reset links expire after 15 minutes. Email addresses are not verified.</p>
 		</div>
 	</dialog>
+	<dialog id="demo-account-dialog" aria-labelledby="demo-account-title">
+		<div class="dialog-content">
+			<div class="dialog-header"><div><h2 id="demo-account-title">Demo profile</h2><p class="auth-description">A sample account for exploring the storefront.</p></div><button class="icon-button" type="button" data-close-demo-account aria-label="Close demo profile">×</button></div>
+			<div class="demo-profile-card"><img src="/assets/demo-avatar.svg" alt="Illustrated demo profile avatar"><div><strong>Alex Morgan</strong><span>alex@dripdistrict.demo</span><span>Demo account · no sign-in required</span></div></div>
+			<section aria-labelledby="demo-orders-title"><h3 id="demo-orders-title">Sample order history</h3><ol class="demo-order-list" id="demo-order-list"></ol></section>
+		</div>
+	</dialog>
 
 	<dialog class="checkout-dialog" id="checkout-dialog" aria-labelledby="checkout-title">
-		<div class="dialog-content"><div class="dialog-header"><div><h2 id="checkout-title">Checkout</h2><p class="dialog-price">Pay securely with PayPal</p></div><button class="icon-button" type="button" data-close-checkout aria-label="Close checkout">×</button></div><div id="checkout-body"><form class="checkout-form" id="checkout-form"><div><label for="checkout-name">Name</label><input id="checkout-name" name="name" autocomplete="name" required maxlength="120"></div><div><label for="checkout-email">Email</label><input id="checkout-email" name="email" type="email" autocomplete="email" required maxlength="254"></div><p class="dialog-description">PayPal will securely collect your shipping address and payment details.</p><p class="checkout-message" id="checkout-message" role="status" aria-live="polite"></p><div class="paypal-button-container" id="paypal-button-container"></div></form></div></div>
+		<div class="dialog-content">
+			<div class="dialog-header"><div><h2 id="checkout-title">Demo checkout</h2><p class="dialog-price">No payment will be collected</p></div><button class="icon-button" type="button" data-close-checkout aria-label="Close checkout">×</button></div>
+			<div id="checkout-body"><form class="checkout-form" id="checkout-form">
+				<div><label for="checkout-name">Name</label><input id="checkout-name" name="name" autocomplete="name" required maxlength="120"></div>
+				<div><label for="checkout-email">Email</label><input id="checkout-email" name="email" type="email" autocomplete="email" required maxlength="254"></div>
+				<div><label for="promo-code">Demo promo code</label><div class="promo-field"><input id="promo-code" name="promoCode" autocomplete="off" placeholder="Try DEMO10"><button id="apply-promo" type="button">Apply</button></div></div>
+				<div class="checkout-totals" id="checkout-totals"></div>
+				<p class="checkout-message" id="checkout-message" role="status" aria-live="polite"></p>
+				<button class="checkout-button checkout-demo-button" type="submit">Place demo order</button>
+			</form></div>
+		</div>
 	</dialog>
 
 	<script type="module">
@@ -442,7 +803,14 @@
 		}
 
 	async function initializeStore() {
-		const storageKeys = { cart: 'drip-district-cart', favorites: 'drip-district-favorites', comparison: 'drip-district-comparison' };
+		const storageKeys = {
+			cart: 'drip-district-food-cart-v1',
+			favorites: 'drip-district-food-favorites-v1',
+			comparison: 'drip-district-food-comparison-v1',
+			recentlyViewed: 'drip-district-food-recently-viewed-v1',
+			demoOrders: 'drip-district-demo-orders',
+			theme: 'drip-district-theme'
+		};
 		let activeAccount = null;
 		let pendingAccount = window.dripDistrictAccount ?? null;
 		let storeReady = false;
@@ -460,6 +828,30 @@
 			try { localStorage.setItem(key, JSON.stringify(value)); }
 			catch { /* Storage can be unavailable for local files or private browsing. */ }
 		};
+		const root = document.documentElement;
+		const themeToggle = document.querySelector('#theme-toggle');
+		function setTheme(theme) {
+			const isDark = theme === 'dark';
+			root.dataset.theme = isDark ? 'dark' : 'light';
+			themeToggle.setAttribute('aria-pressed', String(isDark));
+			themeToggle.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} mode`);
+			themeToggle.title = `Switch to ${isDark ? 'light' : 'dark'} mode`;
+			themeToggle.textContent = isDark ? '☀' : '☾';
+		}
+		setTheme(loadState(storageKeys.theme, 'light'));
+		themeToggle.addEventListener('click', () => {
+			const theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+			setTheme(theme);
+			saveState(storageKeys.theme, theme);
+		});
+		document.querySelector('#copy-promo').addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText('DEMO10');
+				showToast('Demo code DEMO10 copied', 'success');
+			} catch {
+				showToast('Use demo code DEMO10 at checkout', 'success');
+			}
+		});
 		const formatPrice = (amount) => `$${amount.toFixed(2)}`;
 		const grid = document.querySelector('.product-grid');
 		let products;
@@ -475,11 +867,21 @@
 			message.setAttribute('role', 'alert');
 			message.textContent = 'The shop is temporarily unavailable. Please start the backend and refresh the page.';
 			grid.replaceChildren(message);
-			document.querySelector('#results-count').textContent = 'Catalog unavailable';
-			document.querySelector('#catalog-footer-count').textContent = 'Catalog unavailable';
+			document.querySelector('#results-count').textContent = 'Menu unavailable';
+			document.querySelector('#catalog-footer-count').textContent = 'Menu unavailable';
 			return;
 		}
 
+		const sampleReviews = [
+			'Packed with flavor and still piping hot when it arrived.',
+			'Fresh, generous, and exactly what I was craving.',
+			'The kind of comfort food that makes the whole day better.'
+		];
+		const ratingFor = (product) => {
+			const seed = Number(product.id.replace('food-', '')) || 1;
+			return { score: 4.6 + (seed % 4) * 0.1, count: 18 + seed * 7 };
+		};
+		const lowStockIds = new Set(['food-2', 'food-4', 'food-7', 'food-10', 'food-14']);
 		const cards = products.map((product) => {
 			const card = document.createElement('article');
 			card.className = 'product';
@@ -495,13 +897,17 @@
 			image.loading = 'lazy';
 			const tag = document.createElement('span');
 			tag.className = 'product-tag';
-			tag.textContent = product.tag;
+			tag.textContent = product.tag.toLowerCase().includes('new') ? 'New' : product.tag;
+			const stockTag = document.createElement('span');
+			stockTag.className = 'stock-tag';
+			stockTag.textContent = 'Popular today';
+			stockTag.hidden = !lowStockIds.has(product.id);
 			const favorite = document.createElement('button');
 			favorite.className = 'wish-button';
 			favorite.type = 'button';
 			favorite.setAttribute('aria-pressed', 'false');
 			favorite.textContent = '♡';
-			imageWrap.append(image, tag, favorite);
+			imageWrap.append(image, tag, stockTag, favorite);
 
 			const meta = document.createElement('div');
 			meta.className = 'product-meta';
@@ -514,6 +920,22 @@
 			const detail = document.createElement('div');
 			detail.className = 'product-category';
 			detail.textContent = product.detail;
+			const rating = ratingFor(product);
+			const ratingLine = document.createElement('div');
+			ratingLine.className = 'product-rating';
+			const ratingStars = document.createElement('span');
+			ratingStars.className = 'stars';
+			ratingStars.setAttribute('role', 'img');
+			ratingStars.setAttribute('aria-label', `${rating.score.toFixed(1)} out of 5 stars`);
+			ratingStars.textContent = '★★★★★';
+			const ratingScore = document.createElement('span');
+			ratingScore.textContent = rating.score.toFixed(1);
+			const ratingCount = document.createElement('span');
+			ratingCount.textContent = `(${rating.count})`;
+			const demoLabel = document.createElement('span');
+			demoLabel.className = 'demo-note';
+			demoLabel.textContent = 'sample reviews';
+			ratingLine.append(ratingStars, ratingScore, ratingCount, demoLabel);
 
 			const actions = document.createElement('div');
 			actions.className = 'product-actions';
@@ -524,13 +946,14 @@
 			const addButton = document.createElement('button');
 			addButton.className = 'add-button';
 			addButton.type = 'button';
-			addButton.textContent = 'Add to bag';
+			addButton.textContent = 'Add to order';
 			actions.append(detailsButton, addButton);
-			card.append(imageWrap, meta, detail, actions);
+			card.append(imageWrap, meta, detail, ratingLine, actions);
 			favorite.setAttribute('aria-label', `Save ${product.name}`);
 			return card;
 		});
 		grid.replaceChildren(...cards);
+		const cardById = new Map(products.map((product, index) => [product.id, cards[index]]));
 		const productById = new Map(products.map((product) => [product.id, product]));
 		const cartDialog = document.querySelector('#cart-drawer');
 		const cartScrim = document.querySelector('#cart-scrim');
@@ -558,11 +981,15 @@
 			(Array.isArray(savedComparison) ? savedComparison : []).map(String).filter((id) => productById.has(id))
 		)].slice(0, 3);
 		let comparison = normalizeComparison(loadState(storageKeys.comparison, []));
+		const savedRecentlyViewed = loadState(storageKeys.recentlyViewed, []);
+		let recentlyViewed = [...new Set(
+			(Array.isArray(savedRecentlyViewed) ? savedRecentlyViewed : []).map(String).filter((id) => productById.has(id))
+		)].slice(0, 8);
 		let activeCategory = 'all';
 		let favoritesOnly = false;
 		let selectedProduct = null;
 		let cartCloseTimeout = 0;
-		let paypalButtonsPromise = null;
+		let promoApplied = false;
 
 		function reportAccountDataStatus(message, isError = false) {
 			window.dispatchEvent(new CustomEvent('dripdistrict:account-data-status', {
@@ -599,6 +1026,139 @@
 
 		const saveCart = () => saveAccountData();
 		const saveFavorites = () => saveAccountData();
+
+		function cartSubtotal() {
+			return cart.reduce((sum, item) => sum + productById.get(item.id).price * item.quantity, 0);
+		}
+
+		function renderCheckoutTotals() {
+			const container = document.querySelector('#checkout-totals');
+			const subtotal = cartSubtotal();
+			const discount = promoApplied ? subtotal * 0.1 : 0;
+			container.replaceChildren();
+			const addRow = (label, amount, className = '') => {
+				const row = document.createElement('div');
+				if (className) row.className = className;
+				const title = document.createElement('span');
+				title.textContent = label;
+				const value = document.createElement('strong');
+				value.textContent = amount < 0 ? `-${formatPrice(Math.abs(amount))}` : formatPrice(amount);
+				row.append(title, value);
+				container.append(row);
+			};
+			addRow('Subtotal', subtotal);
+			if (promoApplied) addRow('DEMO10 discount', -discount, 'discount');
+			addRow('Demo total', subtotal - discount);
+		}
+
+		function renderRecentlyViewed() {
+			const container = document.querySelector('#recently-viewed-grid');
+			container.replaceChildren();
+			if (recentlyViewed.length === 0) {
+				const empty = document.createElement('p');
+				empty.className = 'recent-empty';
+				empty.textContent = 'Open a product to start your viewing history.';
+				container.append(empty);
+				return;
+			}
+			for (const id of recentlyViewed.slice(0, 4)) {
+				const product = productById.get(id);
+				const button = document.createElement('button');
+				button.className = 'recent-card';
+				button.type = 'button';
+				button.dataset.recentProduct = id;
+				const image = document.createElement('img');
+				image.src = product.image;
+				image.alt = '';
+				const text = document.createElement('span');
+				const name = document.createElement('strong');
+				name.textContent = product.name;
+				const price = document.createElement('span');
+				price.textContent = formatPrice(product.price);
+				text.append(name, price);
+				button.append(image, text);
+				container.append(button);
+			}
+		}
+
+		function recordRecentlyViewed(product) {
+			recentlyViewed = [product.id, ...recentlyViewed.filter((id) => id !== product.id)].slice(0, 8);
+			saveState(storageKeys.recentlyViewed, recentlyViewed);
+			renderRecentlyViewed();
+		}
+
+		function openProductDetails(product) {
+			selectedProduct = product;
+			document.querySelector('#detail-name').textContent = product.name;
+			document.querySelector('#detail-price').textContent = formatPrice(product.price);
+			document.querySelector('#detail-description').textContent = `${product.detail}. Prepared fresh when you order.`;
+			const mainImage = document.querySelector('#detail-image');
+			mainImage.src = product.image;
+			mainImage.alt = product.imageAlt;
+			mainImage.style.filter = 'none';
+			const related = products.filter((item) => item.category === product.category && item.id !== product.id);
+			const galleryItems = [{ image: product.image, imageAlt: product.imageAlt }, ...related.slice(0, 2)];
+			const thumbnails = document.querySelector('#detail-gallery-thumbs');
+			thumbnails.replaceChildren();
+			galleryItems.forEach((item, index) => {
+				const button = document.createElement('button');
+				button.className = 'detail-gallery-thumb';
+				button.type = 'button';
+				button.setAttribute('aria-pressed', String(index === 0));
+				button.setAttribute('aria-label', index === 0 ? 'Main dish image' : `Related ${product.category} dish ${index}`);
+				const image = document.createElement('img');
+				image.src = item.image;
+				image.alt = '';
+				button.append(image);
+				button.addEventListener('click', () => {
+					mainImage.src = item.image;
+					mainImage.alt = item.imageAlt;
+					mainImage.style.filter = 'none';
+					thumbnails.querySelectorAll('button').forEach((thumb) => thumb.setAttribute('aria-pressed', String(thumb === button)));
+					document.querySelectorAll('#detail-swatches .color-swatch').forEach((swatch) => swatch.setAttribute('aria-pressed', 'false'));
+				});
+				thumbnails.append(button);
+			});
+			const rating = ratingFor(product);
+			const ratingContainer = document.querySelector('#detail-rating');
+			ratingContainer.replaceChildren();
+			const stars = document.createElement('span');
+			stars.className = 'review-stars';
+			stars.setAttribute('role', 'img');
+			stars.setAttribute('aria-label', `${rating.score.toFixed(1)} out of 5 stars`);
+			stars.textContent = '★★★★★';
+			const ratingText = document.createElement('span');
+			ratingText.textContent = ` ${rating.score.toFixed(1)} · ${rating.count} reviews`;
+			const demoText = document.createElement('span');
+			demoText.className = 'demo-note';
+			demoText.textContent = ' · sample ratings';
+			ratingContainer.append(stars, ratingText, demoText);
+			const reviewIndex = (Number(product.id.replace('food-', '')) - 1) % sampleReviews.length;
+			document.querySelector('#detail-review-quote').textContent = `“${sampleReviews[reviewIndex]}”`;
+			const swatches = document.querySelector('#detail-swatches');
+			swatches.replaceChildren();
+			[
+				{ name: 'Chalk', color: '#e9e5db', filter: 'grayscale(.4) brightness(1.13)' },
+				{ name: 'Ink', color: '#262625', filter: 'grayscale(1) brightness(.53)' },
+				{ name: 'Olive', color: '#6d7652', filter: 'sepia(.7) saturate(.8) hue-rotate(25deg)' },
+				{ name: 'Rust', color: '#b85d3e', filter: 'sepia(.7) saturate(1.2) hue-rotate(325deg)' }
+			].forEach((variant, index) => {
+				const button = document.createElement('button');
+				button.className = 'color-swatch';
+				button.type = 'button';
+				button.style.backgroundColor = variant.color;
+				button.setAttribute('aria-label', `${variant.name} color preview`);
+				button.setAttribute('aria-pressed', String(index === 0));
+				button.addEventListener('click', () => {
+					mainImage.style.filter = variant.filter;
+					swatches.querySelectorAll('button').forEach((swatch) => swatch.setAttribute('aria-pressed', String(swatch === button)));
+				});
+				swatches.append(button);
+			});
+			recordRecentlyViewed(product);
+			renderComparisonControls();
+			productDialog.showModal();
+		}
 
 		async function setActiveAccount(user) {
 			const previousAccountId = activeAccount?.id ?? null;
@@ -649,106 +1209,6 @@
 			}
 		}
 
-		async function initializePayPalButtons() {
-			if (paypalButtonsPromise) return paypalButtonsPromise;
-			paypalButtonsPromise = (async () => {
-				const message = document.querySelector('#checkout-message');
-				const configResponse = await fetch('/api/paypal/config');
-				if (!configResponse.ok) throw new Error(`Payment setup request failed with status ${configResponse.status}.`);
-				const config = await configResponse.json();
-				if (!config.enabled) {
-					message.textContent = 'PayPal is not configured yet. Add your PayPal sandbox credentials to .env and restart the backend.';
-					paypalButtonsPromise = null;
-					return;
-				}
-
-				if (!window.paypal) {
-					await new Promise((resolve, reject) => {
-						const script = document.createElement('script');
-						script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(config.clientId)}&currency=${encodeURIComponent(config.currency)}&intent=capture&components=buttons`;
-						script.onload = resolve;
-						script.onerror = () => reject(new Error('Could not load PayPal Checkout. Check your connection and try again.'));
-						document.head.append(script);
-					});
-				}
-
-				const form = document.querySelector('#checkout-form');
-				await window.paypal.Buttons({
-					style: { layout: 'vertical', shape: 'rect', label: 'paypal' },
-					onClick(_data, actions) {
-						message.textContent = '';
-						if (!form.reportValidity() || cart.length === 0) {
-							if (cart.length === 0) message.textContent = 'Your bag is empty.';
-							return actions.reject();
-						}
-						return actions.resolve();
-					},
-					async createOrder() {
-						try {
-							const response = await fetch('/api/paypal/orders', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									customer: {
-										name: form.querySelector('#checkout-name').value,
-										email: form.querySelector('#checkout-email').value
-									},
-									items: cart
-								})
-							});
-							const result = await response.json();
-							if (!response.ok) throw new Error(result.error || `Checkout setup failed with status ${response.status}.`);
-							return result.id;
-						} catch (error) {
-							console.error('Could not create the PayPal order:', error);
-							message.textContent = error instanceof Error ? error.message : 'Could not start PayPal checkout.';
-							throw error;
-						}
-					},
-					async onApprove(data) {
-						try {
-							const response = await fetch(`/api/paypal/orders/${encodeURIComponent(data.orderID)}/capture`, { method: 'POST' });
-							const result = await response.json();
-							if (!response.ok) throw new Error(result.error || `Payment confirmation failed with status ${response.status}.`);
-							if (result.status !== 'completed') throw new Error('PayPal has not confirmed the payment yet.');
-
-							cart = [];
-							saveCart();
-							renderCart();
-							const success = document.createElement('div');
-							success.className = 'checkout-success';
-							const title = document.createElement('h3');
-							title.textContent = 'Payment received';
-							const confirmation = document.createElement('p');
-							confirmation.textContent = result.shippingAddressReceived
-								? `Your order ${result.orderId.slice(0, 8)} is confirmed.`
-								: `Payment succeeded for order ${result.orderId.slice(0, 8)}. Contact the shop to confirm shipping details.`;
-							success.append(title, confirmation);
-							form.hidden = true;
-							document.querySelector('#checkout-body').append(success);
-						} catch (error) {
-							console.error('Could not confirm the PayPal payment:', error);
-							message.textContent = error instanceof Error ? error.message : 'Could not confirm your payment. Contact the shop before trying again.';
-						}
-					},
-					onCancel() {
-						message.textContent = 'Checkout cancelled. You have not been charged.';
-					},
-					onError(error) {
-						console.error('PayPal Checkout failed:', error);
-						if (!message.textContent) message.textContent = 'PayPal checkout failed. Please try again.';
-					}
-				}).render('#paypal-button-container');
-			})();
-			try {
-				await paypalButtonsPromise;
-			} catch (error) {
-				paypalButtonsPromise = null;
-				console.error('Could not initialize PayPal Checkout:', error);
-				throw error;
-			}
-		}
-
 		function renderCatalog() {
 			const query = document.querySelector('#search').value.trim().toLowerCase();
 			const sort = document.querySelector('#sort-products').value;
@@ -760,14 +1220,14 @@
 			if (sort === 'price-low') visible.sort((a, b) => a.price - b.price);
 			if (sort === 'price-high') visible.sort((a, b) => b.price - a.price);
 			if (sort === 'name') visible.sort((a, b) => a.name.localeCompare(b.name));
-			visible.forEach((product) => grid.append(cards[Number(product.id) - 1]));
+			visible.forEach((product) => grid.append(cardById.get(product.id)));
 			cards.forEach((card) => { card.hidden = !visible.some((product) => product.id === card.dataset.id); });
 			let emptyState = document.querySelector('.empty-state');
 			if (!emptyState) {
 				emptyState = document.createElement('div');
 				emptyState.className = 'empty-state';
 				const heading = document.createElement('h2');
-				heading.textContent = 'No pieces found';
+				heading.textContent = 'No dishes found';
 				const description = document.createElement('p');
 				description.textContent = 'Try another search or clear your filters.';
 				const clearButton = document.createElement('button');
@@ -778,9 +1238,9 @@
 				grid.append(emptyState);
 			}
 			emptyState.hidden = visible.length > 0;
-			document.querySelector('#results-count').textContent = `${visible.length} ${visible.length === 1 ? 'product' : 'products'}`;
-			document.querySelector('#catalog-footer-count').textContent = `Showing ${visible.length} ${visible.length === 1 ? 'product' : 'products'}`;
-			document.querySelector('#catalog-title').textContent = favoritesOnly ? 'Saved pieces' : activeCategory === 'all' ? 'All pieces' : `${activeCategory[0].toUpperCase()}${activeCategory.slice(1)}`;
+			document.querySelector('#results-count').textContent = `${visible.length} ${visible.length === 1 ? 'dish' : 'dishes'}`;
+			document.querySelector('#catalog-footer-count').textContent = `Showing ${visible.length} ${visible.length === 1 ? 'dish' : 'dishes'}`;
+			document.querySelector('#catalog-title').textContent = favoritesOnly ? 'Saved dishes' : activeCategory === 'all' ? 'Today’s menu' : `${activeCategory[0].toUpperCase()}${activeCategory.slice(1)}`;
 			document.querySelectorAll('.category-button').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.category === activeCategory && !favoritesOnly)));
 		}
 
@@ -788,6 +1248,9 @@
 			const compareButton = document.querySelector('#compare-products');
 			compareButton.textContent = `Compare (${comparison.length})`;
 			compareButton.disabled = comparison.length < 2;
+			compareButton.setAttribute('aria-label', comparison.length < 2
+				? `Compare products, ${comparison.length} selected; select at least 2`
+				: `Compare ${comparison.length} selected products`);
 			cards.forEach((card) => {
 				const detailsButton = card.querySelector('.details-button');
 				const product = productById.get(card.dataset.id);
@@ -817,16 +1280,33 @@
 
 			const selectedProducts = comparison.map((id) => productById.get(id));
 			const table = document.createElement('table');
+			table.className = 'comparison-table';
+			const caption = document.createElement('caption');
+			caption.className = 'visually-hidden';
+			caption.textContent = `Side-by-side comparison of ${selectedProducts.map((product) => product.name).join(', ')}`;
+			table.append(caption);
 			const head = document.createElement('thead');
 			const headerRow = document.createElement('tr');
 			const featureHeading = document.createElement('th');
 			featureHeading.scope = 'col';
-			featureHeading.textContent = 'Feature';
+			featureHeading.textContent = 'Key details';
 			headerRow.append(featureHeading);
 			for (const product of selectedProducts) {
 				const heading = document.createElement('th');
 				heading.scope = 'col';
-				heading.textContent = product.name;
+				const productCard = document.createElement('div');
+				productCard.className = 'comparison-product';
+				const image = document.createElement('img');
+				image.src = product.image;
+				image.alt = product.imageAlt;
+				const productInfo = document.createElement('div');
+				const name = document.createElement('strong');
+				name.textContent = product.name;
+				const category = document.createElement('span');
+				category.textContent = product.category;
+				productInfo.append(name, category);
+				productCard.append(image, productInfo);
+				heading.append(productCard);
 				headerRow.append(heading);
 			}
 			head.append(headerRow);
@@ -841,6 +1321,7 @@
 			];
 			for (const [label, getValue] of rows) {
 				const row = document.createElement('tr');
+				if (label === 'Price') row.className = 'comparison-price-row';
 				const heading = document.createElement('th');
 				heading.scope = 'row';
 				heading.textContent = label;
@@ -861,7 +1342,7 @@
 			for (const product of selectedProducts) {
 				const cell = document.createElement('td');
 				const removeButton = document.createElement('button');
-				removeButton.className = 'details-button';
+				removeButton.className = 'comparison-remove';
 				removeButton.type = 'button';
 				removeButton.dataset.removeComparison = product.id;
 				removeButton.textContent = 'Remove';
@@ -871,7 +1352,13 @@
 			}
 			body.append(removeRow);
 			table.append(body);
-			container.append(table);
+			const tableWrap = document.createElement('div');
+			tableWrap.className = 'comparison-table-wrap';
+			tableWrap.setAttribute('role', 'region');
+			tableWrap.setAttribute('aria-label', 'Side-by-side product comparison');
+			tableWrap.tabIndex = 0;
+			tableWrap.append(table);
+			container.append(tableWrap);
 		}
 
 		function toggleComparison(product) {
@@ -906,7 +1393,7 @@
 			const itemTotal = cart.reduce((sum, item) => sum + item.quantity, 0);
 			const subtotal = cart.reduce((sum, item) => sum + productById.get(item.id).price * item.quantity, 0);
 			document.querySelectorAll('.bag-count').forEach((badge) => { badge.textContent = String(itemTotal); });
-			document.querySelector('#open-cart').setAttribute('aria-label', `Open shopping bag, ${itemTotal} ${itemTotal === 1 ? 'item' : 'items'}`);
+			document.querySelector('#open-cart').setAttribute('aria-label', `Open your order, ${itemTotal} ${itemTotal === 1 ? 'item' : 'items'}`);
 			document.querySelector('.drawer-count').textContent = itemTotal ? `(${itemTotal})` : '';
 			document.querySelector('#cart-subtotal').textContent = formatPrice(subtotal);
 			document.querySelector('#start-checkout').disabled = itemTotal === 0;
@@ -915,7 +1402,7 @@
 			if (cart.length === 0) {
 				const empty = document.createElement('p');
 				empty.className = 'cart-empty';
-				empty.textContent = 'Your bag is empty. Add something you like.';
+				empty.textContent = 'Your order is empty. Add a dish to get started.';
 				container.append(empty);
 				return;
 			}
@@ -932,7 +1419,7 @@
 				name.textContent = product.name;
 				const detail = document.createElement('div');
 				detail.className = 'cart-line-detail';
-				detail.textContent = `Size ${item.size} · ${formatPrice(product.price)}`;
+				detail.textContent = `Freshly prepared · ${formatPrice(product.price)}`;
 				const quantity = document.createElement('div');
 				quantity.className = 'quantity-control';
 				const decrease = document.createElement('button');
@@ -960,7 +1447,7 @@
 				remove.dataset.cartAction = 'remove';
 				remove.dataset.id = item.id;
 				remove.dataset.size = item.size;
-				remove.setAttribute('aria-label', `Remove ${product.name} from bag`);
+				remove.setAttribute('aria-label', `Remove ${product.name} from your order`);
 				remove.textContent = 'Remove';
 				line.append(image, info, remove);
 				container.append(line);
@@ -974,7 +1461,7 @@
 			else cart.push({ id: product.id, size, quantity: 1 });
 			saveCart();
 			renderCart();
-			showToast(`${product.name} added to bag`, 'success');
+			showToast(`${product.name} added to your order`, 'success');
 			return true;
 		}
 
@@ -1054,21 +1541,19 @@
 				if (favoritesOnly) renderCatalog();
 			}
 			if (event.target.closest('.details-button')) {
-				selectedProduct = product;
-				document.querySelector('#detail-name').textContent = product.name;
-				document.querySelector('#detail-price').textContent = formatPrice(product.price);
-				document.querySelector('#detail-image').src = product.image;
-				document.querySelector('#detail-image').alt = product.imageAlt;
-				document.querySelector('#detail-description').textContent = `${product.detail}. Designed for everyday wear.`;
-				renderComparisonControls();
-				productDialog.showModal();
+				openProductDetails(product);
 			}
 			if (event.target.closest('.add-button')) {
 				const added = addToCart(product);
 				const button = event.target.closest('.add-button');
 				button.textContent = added ? 'Added' : 'Limit reached';
-				window.setTimeout(() => { button.textContent = 'Add to bag'; }, 900);
+				window.setTimeout(() => { button.textContent = 'Add to order'; }, 900);
 			}
+		});
+		document.querySelector('#recently-viewed-grid').addEventListener('click', (event) => {
+			const button = event.target.closest('[data-recent-product]');
+			const product = button && productById.get(button.dataset.recentProduct);
+			if (product) openProductDetails(product);
 		});
 
 		document.querySelector('#detail-add').addEventListener('click', () => {
@@ -1077,7 +1562,7 @@
 				document.querySelector('#detail-add').textContent = 'Limit reached';
 				return;
 			}
-			document.querySelector('#detail-add').textContent = 'Add to bag';
+			document.querySelector('#detail-add').textContent = 'Add to order';
 			productDialog.close();
 			openCart();
 		});
@@ -1146,13 +1631,84 @@
 			const checkoutBody = document.querySelector('#checkout-body');
 			const checkoutForm = document.querySelector('#checkout-form');
 			checkoutForm.reset();
+			promoApplied = false;
 			document.querySelector('#checkout-message').textContent = '';
 			checkoutForm.hidden = false;
 			checkoutBody.querySelector('.checkout-success')?.remove();
+			renderCheckoutTotals();
 			checkoutDialog.showModal();
-			initializePayPalButtons().catch((error) => {
-				document.querySelector('#checkout-message').textContent = error.message;
+		});
+		document.querySelector('#apply-promo').addEventListener('click', () => {
+			const message = document.querySelector('#checkout-message');
+			const code = document.querySelector('#promo-code').value.trim().toUpperCase();
+			if (code !== 'DEMO10') {
+				promoApplied = false;
+				message.textContent = 'That demo code did not match. Try DEMO10.';
+				renderCheckoutTotals();
+				return;
+			}
+			promoApplied = true;
+			message.textContent = 'DEMO10 applied: 10% off your sample order.';
+			renderCheckoutTotals();
+		});
+		document.querySelector('#promo-code').addEventListener('input', () => {
+			if (!promoApplied) return;
+			promoApplied = false;
+			document.querySelector('#checkout-message').textContent = '';
+			renderCheckoutTotals();
+		});
+		document.querySelector('#checkout-form').addEventListener('submit', (event) => {
+			event.preventDefault();
+			if (cart.length === 0) {
+				document.querySelector('#checkout-message').textContent = 'Your order is empty.';
+				return;
+			}
+			const subtotal = cartSubtotal();
+			const discount = promoApplied ? subtotal * 0.1 : 0;
+			const order = {
+				id: `DD-DEMO-${Date.now().toString(36).toUpperCase()}`,
+				createdAt: new Date().toISOString(),
+				total: subtotal - discount,
+				items: cart.map((item) => ({
+					name: productById.get(item.id).name,
+					size: item.size,
+					quantity: item.quantity,
+					price: productById.get(item.id).price
+				}))
+			};
+			const demoOrders = loadState(storageKeys.demoOrders, []);
+			saveState(storageKeys.demoOrders, [order, ...(Array.isArray(demoOrders) ? demoOrders : [])].slice(0, 10));
+			window.dispatchEvent(new CustomEvent('dripdistrict:demo-order', { detail: { order } }));
+			if (!activeAccount) {
+				cart = [];
+				saveCart();
+			}
+			renderCart();
+			const checkoutForm = document.querySelector('#checkout-form');
+			checkoutForm.hidden = true;
+			const success = document.createElement('section');
+			success.className = 'checkout-success';
+			success.setAttribute('aria-live', 'polite');
+			const title = document.createElement('h3');
+			title.textContent = 'Demo order confirmed';
+			const confirmation = document.createElement('p');
+			confirmation.textContent = `Order ${order.id} · ${formatPrice(order.total)}. This is a sample only; no payment was taken.`;
+			const orderItems = document.createElement('ul');
+			for (const item of order.items) {
+				const line = document.createElement('li');
+				line.textContent = `${item.name} · Qty ${item.quantity}`;
+				orderItems.append(line);
+			}
+			const profileButton = document.createElement('button');
+			profileButton.className = 'filter-button';
+			profileButton.type = 'button';
+			profileButton.textContent = 'View sample order history';
+			profileButton.addEventListener('click', () => {
+				checkoutDialog.close();
+				window.dispatchEvent(new CustomEvent('dripdistrict:open-demo-profile'));
 			});
+			success.append(title, confirmation, orderItems, profileButton);
+			document.querySelector('#checkout-body').append(success);
 		});
 
 		document.querySelectorAll('[data-count]').forEach((count) => {
@@ -1164,6 +1720,8 @@
 		renderFavorites();
 		renderCatalog();
 		renderCart();
+		renderRecentlyViewed();
+		renderCheckoutTotals();
 		renderComparisonControls();
 	}
 

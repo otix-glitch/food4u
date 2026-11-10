@@ -1,94 +1,91 @@
-const baseProducts = [
+const menu = [
 	{
-		name: 'District Heavy Tee', price: 42, category: 'tops', detail: 'Tops · Chalk',
-		image: '/assets/products/photo-1521572163474-6864f9cf17ab.jpg',
-		imageAlt: 'Heavyweight white cotton T-shirt', tag: 'Bestseller'
+		name: 'The District Smash', price: 14.5, category: 'burgers',
+		detail: 'Double smash patty · cheddar · house sauce',
+		image: '/assets/food/burger-classic.jpg',
+		imageAlt: 'Juicy double cheeseburger with lettuce and tomato', tag: 'Bestseller'
 	},
 	{
-		name: 'After Hours Denim', price: 88, category: 'bottoms', detail: 'Bottoms · Washed black',
-		image: '/assets/products/photo-1542272604-787c3835535d.jpg',
-		imageAlt: 'Relaxed dark denim jeans', tag: 'New'
+		name: 'Double Trouble Burger', price: 16.5, category: 'burgers',
+		detail: 'Two patties · caramelized onion · pickles',
+		image: '/assets/food/burger-double.jpg',
+		imageAlt: 'Double cheeseburger stacked with pickles and sauce', tag: 'Crowd favorite'
 	},
 	{
-		name: 'Block Party Jacket', price: 124, category: 'tops', detail: 'Outerwear · Burnt orange',
-		image: '/assets/products/photo-1551028719-00167b16eac5.jpg',
-		imageAlt: 'Relaxed vintage-inspired outerwear', tag: 'Limited run'
+		name: 'Garden Margherita', price: 15, category: 'pizza',
+		detail: 'San Marzano tomato · mozzarella · fresh basil',
+		image: '/assets/food/pizza-margherita.jpg',
+		imageAlt: 'Freshly baked pizza topped with herbs and cheese', tag: 'Veggie'
 	},
 	{
-		name: 'Off Script Cap', price: 36, category: 'extras', detail: 'Extras · Washed olive',
-		image: '/assets/products/photo-1521369909029-2afed882baee.jpg',
-		imageAlt: 'Classic everyday baseball cap', tag: 'Easy fit'
+		name: 'Hot Honey Chicken Pizza', price: 18, category: 'pizza',
+		detail: 'Roast chicken · chili honey · red onion',
+		image: '/assets/food/pizza-slice.jpg',
+		imageAlt: 'Golden pizza with chicken and fresh toppings', tag: 'House special'
 	},
 	{
-		name: 'Sunday State Sweatshirt', price: 76, category: 'tops', detail: 'Tops · Heather grey',
-		image: '/assets/products/photo-1551488831-00ddcb6c6bd3.jpg',
-		imageAlt: 'Soft everyday sweatshirt', tag: 'Just landed'
+		name: 'Miso Ramen Bowl', price: 16, category: 'bowls',
+		detail: 'Slow broth · prawns · greens · soft egg',
+		image: '/assets/food/noodles-ramen.jpg',
+		imageAlt: 'Ramen bowl with prawns, greens and soft-boiled egg', tag: 'Comfort food'
 	},
 	{
-		name: 'All Day Trousers', price: 72, category: 'bottoms', detail: 'Bottoms · Everyday khaki',
-		image: '/assets/products/photo-1515886657613-9f3515b0c78f.jpg',
-		imageAlt: 'Easy relaxed-fit everyday trousers', tag: 'Easy fit'
+		name: 'Green Goddess Bowl', price: 14, category: 'bowls',
+		detail: 'Grains · avocado · charred greens · sesame',
+		image: '/assets/food/grain-bowl.jpg',
+		imageAlt: 'Colorful grain bowl filled with greens and vegetables', tag: 'Plant powered'
 	},
 	{
-		name: 'Side Street Long Sleeve', price: 54, category: 'tops', detail: 'Tops · Soft white',
-		image: '/assets/products/photo-1620799140408-edc6dcb6d633.jpg',
-		imageAlt: 'Relaxed-fit graphic tee', tag: 'District pick'
+		name: 'Market Day Salad', price: 12.5, category: 'salads',
+		detail: 'Seasonal greens · crisp vegetables · lemon dressing',
+		image: '/assets/food/market-salad.jpg',
+		imageAlt: 'Fresh market salad with leafy greens and vegetables', tag: 'Fresh pick'
 	},
 	{
-		name: 'Daily Loop Bag', price: 64, category: 'extras', detail: 'Extras · Cobalt',
-		image: '/assets/products/photo-1553062407-98eeb64c6a62.jpg',
-		imageAlt: 'Everyday utility backpack', tag: 'On the move'
+		name: 'Chicken & Greens', price: 15.5, category: 'salads',
+		detail: 'Grilled chicken · garden greens · herbed dressing',
+		image: '/assets/food/fresh-salad.jpg',
+		imageAlt: 'Fresh salad bowl topped with colorful vegetables', tag: 'High protein'
+	},
+	{
+		name: 'Golden Crispy Fries', price: 5.5, category: 'sides',
+		detail: 'Hand-cut potatoes · sea salt · garlic aioli',
+		image: '/assets/food/crispy-fries.jpg',
+		imageAlt: 'Crispy golden french fries ready to share', tag: 'Add a side'
+	},
+	{
+		name: 'Firecracker Wings', price: 10, category: 'sides',
+		detail: 'Sticky chili glaze · toasted sesame · lime',
+		image: '/assets/food/chicken-wings.jpg',
+		imageAlt: 'Crispy chicken wings with a savory glaze', tag: 'A little heat'
+	},
+	{
+		name: 'Chocolate Fudge Cake', price: 7, category: 'desserts',
+		detail: 'Rich cocoa · whipped chocolate · baked in-house',
+		image: '/assets/food/chocolate-cake.jpg',
+		imageAlt: 'Rich chocolate cake with glossy fudge frosting', tag: 'Sweet finish'
+	},
+	{
+		name: 'Berry Cheesecake', price: 7.5, category: 'desserts',
+		detail: 'Vanilla cheesecake · berry compote · buttery crumb',
+		image: '/assets/food/dessert.jpg',
+		imageAlt: 'Sweet dessert with a fresh berry topping', tag: 'Made today'
+	},
+	{
+		name: 'Citrus Fizz', price: 4, category: 'drinks',
+		detail: 'Fresh lemon · sparkling water · mint',
+		image: '/assets/food/citrus-soda.jpg',
+		imageAlt: 'Bright, refreshing citrus drink served chilled', tag: 'Cold & fresh'
+	},
+	{
+		name: 'Chef’s Table Plate', price: 19, category: 'specials',
+		detail: 'Daily chef selection · market-fresh sides',
+		image: '/assets/food/chef-special.jpg',
+		imageAlt: 'Chef’s freshly prepared special served for dinner', tag: 'Today only'
 	}
 ];
 
-const extraProductGroups = [
-	{
-		category: 'tops',
-		items: [
-			['District Boxy Tee', 40], ['Side Street Logo Tee', 42], ['After Hours Long Sleeve', 54], ['Warehouse Graphic Tee', 46],
-			['Off-Duty Hoodie', 86], ['District Crewneck', 78], ['Late Checkout Zip Hoodie', 92], ['Boxed In Heavy Tee', 44],
-			['Good Company Polo', 62], ['Night Shift Overshirt', 88], ['No Signal Thermal', 58], ['Weekend Rugby Shirt', 74],
-			['Everyday Tank', 30], ['Mainline Mockneck', 68], ['Block Letter Hoodie', 84], ['Corner Store Tee', 38],
-			['City Limits Sweatshirt', 80], ['Artist Series Tee', 48]
-		],
-		images: ['photo-1521572163474-6864f9cf17ab', 'photo-1620799140408-edc6dcb6d633', 'photo-1551488831-00ddcb6c6bd3', 'photo-1551028719-00167b16eac5', 'photo-1523398002811-999ca8dec234', 'photo-1529139574466-a303027c1d8b', 'photo-1503342217505-b0a15ec3261c', 'photo-1490481651871-ab68de25d43d']
-	},
-	{
-		category: 'bottoms',
-		items: [
-			['District Relaxed Jean', 92], ['Trackside Cargo Pant', 84], ['Everyday Carpenter Pant', 88], ['Sunday Sweatpant', 68],
-			['Straight Shot Denim', 90], ['Transit Nylon Short', 54], ['Wide Awake Trouser', 82], ['Utility Pocket Short', 52],
-			['Off Hours Parachute Pant', 96], ['Weekend Chino', 76], ['Double Knee Work Pant', 94], ['After Dark Short', 58],
-			['City Runner Jogger', 72], ['Canvas Field Pant', 86], ['Easy Does It Short', 48], ['District Pleated Trouser', 98]
-		],
-		images: ['photo-1542272604-787c3835535d', 'photo-1515886657613-9f3515b0c78f', 'photo-1503341455253-b2e723bb3dbb', 'photo-1529139574466-a303027c1d8b', 'photo-1475180098004-ca77a66827be']
-	},
-	{
-		category: 'extras',
-		items: [
-			['District Five-Panel', 34], ['Everywhere Tote', 42], ['Transit Crossbody', 58], ['Good Luck Beanie', 28],
-			['Side Street Socks', 16], ['Daily Carry Sling', 48], ['Off Script Bucket Hat', 36], ['Utility Key Clip', 18],
-			['Weekend Duffle', 72], ['District Sport Cap', 32], ['Pocket Change Wallet', 38], ['All Day Backpack', 78],
-			['After Hours Beanie', 30], ['Market Day Tote', 38], ['Canvas Zip Pouch', 24], ['City Pack Mini', 64]
-		],
-		images: ['photo-1521369909029-2afed882baee', 'photo-1553062407-98eeb64c6a62', 'photo-1584917865442-de89df76afd3', 'photo-1576566588028-4147f3842f27', 'photo-1512436991641-6745cdb1723f']
-	}
-];
-
-const colors = ['Washed black', 'Chalk', 'Concrete', 'Olive', 'Rust', 'Midnight'];
-const tags = ['Just landed', 'District staple', 'New', 'Easy fit'];
-
-const generatedProducts = extraProductGroups.flatMap((group) => group.items.map(([name, price], index) => ({
-	name,
-	price,
-	category: group.category,
-	detail: `${group.category[0].toUpperCase()}${group.category.slice(1)} · ${colors[index % colors.length]}`,
-	image: `/assets/products/${group.images[index % group.images.length]}.jpg`,
-	imageAlt: name,
-	tag: tags[index % tags.length]
-})));
-
-export const products = [...baseProducts, ...generatedProducts].map((product, index) => ({
-	id: String(index + 1),
+export const products = menu.map((product, index) => ({
+	id: `food-${index + 1}`,
 	...product
 }));
