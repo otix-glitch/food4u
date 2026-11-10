@@ -1,8 +1,12 @@
 # Food 4 U
 
-A responsive food delivery demo called Food 4 U, built with HTML, CSS, and vanilla JavaScript. Its Node.js backend serves a locally photographed menu and provides self-hosted email/password accounts. The app includes dish search, category filters, sorting, saved favorites, an order basket, demo checkout, and Google and GitHub sign-in.
+A responsive food delivery demo called Food 4 U, built with HTML, CSS, and vanilla JavaScript. Its Node.js backend serves a locally photographed menu and supports self-hosted email/password accounts, Google and GitHub sign-in, PayPal checkout, and a real order flow with persistent customer data.
 
-The app also includes demo-only features: sample dish ratings, recently viewed items, a local dark-mode preference, the `DEMO10` sample discount, a sample profile and order history, and a simulated checkout. Demo orders are stored in the browser only; checkout does not collect payment or create a real order.
+## What's new
+
+This release adds the customer account and checkout flow: shoppers can sign up, sign in, recover passwords by email, and keep cart and saved-item data synced to their account. The API also supports optional OAuth sign-in, PayPal sandbox checkout, and secure session handling for authenticated users.
+
+The storefront still includes browsing, category filtering, search, sorting, favorites, and the local demo experience, but the backend now supports account-aware persistence instead of relying on browser-only state alone.
 
 ## Run locally
 
@@ -56,7 +60,7 @@ Render's free web service may spin down after inactivity, so it is suitable for 
 
 The built-in account feature does not need Supabase or another identity provider. Customers can create an account and sign in using an email address and a password of at least 12 characters. The backend stores a salted scrypt password hash (never the raw password) and issues a random, `HttpOnly`, `SameSite=Strict` session cookie. Sessions last up to seven days and a new sign-in replaces the account's previous session.
 
-Account data is stored in `data/auth.json`, which is git-ignored. This file-based store is intended for local testing, not a production deployment; use a durable, access-controlled database with backups before opening registration to customers. On production, set `APP_ORIGIN` to the exact public HTTPS origin of the storefront (for example, `https://shop.example.com`). Production mode requires this setting and marks session cookies `Secure`. Local development can leave it unset.
+Account credentials and reset tokens are stored in `data/auth.json`, which is git-ignored. Per-user cart and favorites are kept in `data/accounts.sqlite`, using SQLite for reliable account-scoped data. This local setup is intended for development and testing; before opening registration to customers, move to a durable, access-controlled database and configure backups. On production, set `APP_ORIGIN` to the exact public HTTPS origin of the storefront (for example, `https://shop.example.com`). Production mode requires this setting and marks session cookies `Secure`. Local development can leave it unset.
 
 Email/password signup addresses are not verified. Password reset is supported when SMTP delivery is configured. Set `SMTP_HOST`, `SMTP_PORT`, and `SMTP_FROM`, then either set both `SMTP_USER` and `SMTP_PASSWORD` or leave both blank for a trusted relay. Use `SMTP_SECURE=true` for implicit TLS (normally port 465); port 587 uses STARTTLS. Reset links are single-use, expire after 15 minutes, and invalidate existing sessions when used. Reset requests are rate-limited with other account mutations and return the same response whether or not an account exists. Password reset is unavailable in the public preview and when SMTP is not configured. For multi-instance production hosting, use shared rate limiting and persistent account storage.
 
@@ -146,6 +150,6 @@ npm test
 
 ## Notes
 
-- Cart and saved products are stored in the browser's local storage.
+- Signed-in customers keep their cart and saved products in their account data (`data/accounts.sqlite`); guest carts remain browser-local.
 - Account passwords are never stored in browser storage; authentication uses an `HttpOnly` session cookie.
 - Sandbox payments are simulated by PayPal; live payments transfer real funds.
